@@ -8,9 +8,20 @@ struct fnabEnemyProperties {
     u8 homey;
 };
 
+enum fnabEnemyState {
+    FNABE_WANDER,
+    FNABE_ATTACK,
+    
+    FNABE_PRIMED,
+    FNABE_PRIMED_LEFT,
+};
+
 struct fnabEnemy {
     s8 x;
     s8 y;
+    s8 tx;
+    s8 ty;
+    u8 state;
     f32 progress;
     struct Object * modelObj;
 };
@@ -30,7 +41,12 @@ enum mapDirection {
     MAPDIR_ARRIVED
 };
 
+extern Vec3f fnabCameraPos;
+extern Vec3f fnabCameraFoc;
+
 void fnab_loop(void);
 void fnab_init(void);
+void fnab_render_2d(void);
+void bhv_fnab_camera(void);
 
 #endif

@@ -5,10 +5,15 @@
 #include "model_ids.h"
 #include "object_list_processor.h"
 #include "audio/external.h"
+#include "engine/math_util.h"
+#include "game_init.h"
+#include "object_helpers.h"
 
 #define _ 0, // Wall / Nothing
 #define F 1, // Floor  
 #define V 2, // Vent
+#define W 3, // Visible from Window
+#define L 4, // Left door (Inverted in array)
 
 u8 fnabMap[20][20] = {
 {F F F F _ F F F _ F F F _ _ _ _ _ _ _ _},
@@ -19,10 +24,10 @@ u8 fnabMap[20][20] = {
 {F F F F _ _ F _ F F F _ F _ _ _ F _ _ _},
 {F F F F F F F F F _ F F F _ _ _ F _ _ _},
 {F _ _ _ _ F _ _ F F F _ F _ _ _ F _ _ _},
-{F F F _ F F F _ _ _ _ _ F _ _ _ F _ _ _},
-{F F F _ F F F _ _ _ _ _ F _ _ _ F _ _ _},
-{F F F _ _ V _ _ _ F F F F _ _ _ F _ _ _},
-{_ _ _ _ _ V _ _ _ F _ _ _ F F F F _ _ _},
+{F F F _ F F F _ _ _ _ _ W _ _ _ F _ _ _},
+{F F F _ F F F _ _ _ _ _ W _ _ _ F _ _ _},
+{F F F _ _ V _ _ _ F W W F _ _ _ F _ _ _},
+{_ _ _ _ _ V _ _ _ L _ _ _ F F F F _ _ _},
 {_ _ _ _ _ V _ _ _ _ _ _ _ _ _ _ _ _ _ _},
 {_ _ _ _ _ V _ _ _ _ _ V _ _ _ _ _ _ _ _},
 {_ _ _ _ _ V V V V V V V _ _ _ _ _ _ _ _},
@@ -36,6 +41,8 @@ u8 fnabMap[20][20] = {
 #undef _
 #undef W
 #undef V
+#undef W
+#undef L
 
 #define MAP_SIZE 20
 #define PATH_BRANCH_STACK_CT 200
@@ -108,30 +115,93 @@ u8 path_find(s8 xs, s8 ys, s8 xd, s8 yd) {
     return MAPDIR_NO_PATH;
 }
 
+f32 deltaTime = 1.0f;
+Vec3f fnabCameraPos;
+Vec3f fnabCameraFoc;
+struct Object * officePovCamera = NULL;
+
+void bhv_fnab_camera(void) {
+    officePovCamera = o;
+
+    o->oFaceAngleYaw += -gPlayer1Controller->rawStickX*7;
+
+    random_u16();
+
+    if (o->oFaceAngleYaw > o->oMoveAngleYaw + 0x1200) {
+        o->oFaceAngleYaw = o->oMoveAngleYaw + 0x1200;
+    }
+    if (o->oFaceAngleYaw < o->oMoveAngleYaw + -0x1200) {
+        o->oFaceAngleYaw = o->oMoveAngleYaw + -0x1200;
+    }
+
+    vec3f_copy(fnabCameraPos,&o->oPosVec);
+    fnabCameraFoc[0] = o->oPosX + sins(o->oFaceAngleYaw) * coss(o->oFaceAnglePitch) * 5.0f;
+    fnabCameraFoc[1] = o->oPosY + sins(o->oFaceAnglePitch) * -5.0f;
+    fnabCameraFoc[2] = o->oPosZ + coss(o->oFaceAngleYaw) * coss(o->oFaceAnglePitch) * 5.0f;
+}
+
 void fnab_enemy_init(struct fnabEnemy * cfe) {
     cfe->progress = 0.0f;
     cfe->x = 1;
     cfe->y = 1;
-    cfe->modelObj = spawn_object(gMarioObject,MODEL_STAR,bhvStaticObject);
+    cfe->tx = 9;
+    cfe->ty = 11;
+    cfe->state = FNABE_WANDER;
+    cfe->modelObj = spawn_object(gMarioObject,MODEL_MOTOS,bhvMotos);
+ 
+    cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f;
+    cfe->modelObj->oPosZ = (-200.0f*cfe->y)-100.0f;
 }
 
 void fnab_enemy_step(struct fnabEnemy * cfe) {
     cfe->progress += 0.01f;
 
-    cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f;
-    cfe->modelObj->oPosZ = (-200.0f*cfe->y)-100.0f;
-
     if (cfe->progress >= 1.0f) {
         cfe->progress -= 1.0f;
 
-        u8 dir = path_find(9,11,cfe->x,cfe->y);
+        if (cfe->state < FNABE_PRIMED) {
+            // Wandering around map
 
-        cfe->x -= dirOffset[dir][0];
-        cfe->y -= dirOffset[dir][1];
+            u8 tile_landed = 0;
+            u16 steps = 1+(random_u16()%3);
+            if (get_map_data(cfe->x,cfe->y) == 3) {
+                steps = 1;
+            }
+            for (int i = 0; i < steps; i++) {
+                u8 dir = path_find(cfe->tx,cfe->ty,cfe->x,cfe->y);
+                bcopy(&fnabMap,&pathfindingMap,MAP_SIZE*MAP_SIZE);
+
+                cfe->x -= dirOffset[dir][0];
+                cfe->y -= dirOffset[dir][1];
+
+                tile_landed = get_map_data(cfe->x,cfe->y);
+
+                f32 model_x_offset = 0.0f;
+                switch(tile_landed) {
+                    case 4:
+                        cfe->state = FNABE_PRIMED_LEFT;
+                        model_x_offset = 50.0f;
+                        break;
+                }
+
+                cfe->modelObj->oFaceAngleYaw = (dir*0x4000) + 0x8000;
+                cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f+model_x_offset;
+                cfe->modelObj->oPosZ = (-200.0f*cfe->y)-100.0f;
+            }
+            if (tile_landed >= 3) {
+                cfe->modelObj->oFaceAngleYaw = obj_angle_to_object(cfe->modelObj,officePovCamera); //stare at the player
+            }
+        } else {
+            // About to attack
+        }
     }
 }
 
 struct fnabEnemy testEnemy;
+
+void fnab_render_2d(void) {
+
+}
 
 void fnab_init(void) {
     fnab_enemy_init(&testEnemy);

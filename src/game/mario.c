@@ -1707,6 +1707,8 @@ s32 execute_mario_action(UNUSED struct Object *obj) {
     s32 inLoop = TRUE;
 
     fnab_loop();
+    obj_set_model(gMarioObject,MODEL_NONE);
+    return;
 
     // Updates once per frame:
     vec3f_get_dist_and_angle(gMarioState->prevPos, gMarioState->pos, &gMarioState->moveSpeed, &gMarioState->movePitch, &gMarioState->moveYaw);

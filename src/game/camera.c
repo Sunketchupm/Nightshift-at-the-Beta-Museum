@@ -28,6 +28,7 @@
 #include "config.h"
 #include "puppyprint.h"
 #include "profiling.h"
+#include "fnab.h"
 
 #define CBUTTON_MASK (U_CBUTTONS | D_CBUTTONS | L_CBUTTONS | R_CBUTTONS)
 
@@ -3417,8 +3418,8 @@ void create_camera(struct GraphNodeCamera *gc, struct AllocOnlyPool *pool) {
  */
 void update_graph_node_camera(struct GraphNodeCamera *gc) {
     gc->rollScreen = gLakituState.roll;
-    vec3f_copy(gc->pos, gLakituState.pos);
-    vec3f_copy(gc->focus, gLakituState.focus);
+    vec3f_copy(gc->pos, fnabCameraPos);
+    vec3f_copy(gc->focus, fnabCameraFoc);
     zoom_out_if_paused_and_outside(gc);
 }
 
@@ -11038,7 +11039,7 @@ Gfx *geo_camera_fov(s32 callContext, struct GraphNode *g, UNUSED void *context) 
         }
     }
 
-    perspective->fov = sFOVState.fov;
+    perspective->fov = 60;
     shake_camera_fov(perspective);
     return NULL;
 }

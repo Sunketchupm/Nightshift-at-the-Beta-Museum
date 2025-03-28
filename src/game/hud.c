@@ -17,6 +17,7 @@
 #include "engine/math_util.h"
 #include "puppycam2.h"
 #include "puppyprint.h"
+#include "fnab.h"
 
 #include "config.h"
 
@@ -566,6 +567,9 @@ void render_hud(void) {
 #else
         create_dl_ortho_matrix();
 #endif
+
+        fnab_render_2d();
+        return;
 
         if (gCurrentArea != NULL && gCurrentArea->camera->mode == CAMERA_MODE_INSIDE_CANNON) {
             render_hud_cannon_reticle();

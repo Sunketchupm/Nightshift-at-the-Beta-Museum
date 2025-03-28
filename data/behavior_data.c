@@ -12,6 +12,7 @@
 #include "game/debug.h"
 #include "menu/file_select.h"
 #include "engine/surface_load.h"
+#include "game/fnab.h"
 
 #include "actors/common0.h"
 #include "actors/common1.h"
@@ -6074,4 +6075,20 @@ const BehaviorScript bhvIntroScene[] = {
     END_LOOP(),
 };
 
+const BehaviorScript bhvMotos[] = {
+    BEGIN(OBJ_LIST_DEFAULT),
+    OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
+    LOAD_ANIMATIONS(oAnimations, motos_anime),
+    ANIMATE(0),
+    SCALE(/*Unused*/ 0, /*Field*/ 120),
+    BEGIN_LOOP(),
+    END_LOOP(),
+};
 
+const BehaviorScript bhvCamera[] = {
+    BEGIN(OBJ_LIST_DEFAULT),
+    OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
+    BEGIN_LOOP(),
+        CALL_NATIVE(bhv_fnab_camera),
+    END_LOOP(),
+};
