@@ -30,3 +30,10 @@
 #include "src/s2d_engine/s2d_config.h"
 #include FONT_C_FILE
 #endif
+
+#include "fanblade/model.inc.c"
+#include "staticscreen/model.inc.c"
+#include "cammap/model.inc.c"
+#include "mouse2/model.inc.c"
+#include "mouse1/model.inc.c"
+#include "cb/model.inc.c"

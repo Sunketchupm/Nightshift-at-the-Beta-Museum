@@ -44,6 +44,29 @@ enum mapDirection {
 extern Vec3f fnabCameraPos;
 extern Vec3f fnabCameraFoc;
 
+enum officeState {
+    OFFICE_STATE_DESK,
+    OFFICE_STATE_HIDE,
+    OFFICE_STATE_UNHIDE,
+    OFFICE_STATE_LEAN_CAMERA,
+    OFFICE_STATE_CAMERA,
+    OFFICE_STATE_LEAVE_CAMERA
+};
+
+struct securityCameraInfo {
+    u8 init;
+    f32 x;
+    f32 y;
+    s16 angle;
+    char * name;
+};
+
+enum officeAction {
+    OACTION_CAMERA,
+    OACTION_HIDE,
+    OACTION_PANEL
+};
+
 void fnab_loop(void);
 void fnab_init(void);
 void fnab_render_2d(void);

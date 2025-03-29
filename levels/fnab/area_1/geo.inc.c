@@ -5,6 +5,9 @@ const GeoLayout fnab_area_1_geo[] = {
 	GEO_OPEN_NODE(),
 		GEO_DISPLAY_LIST(LAYER_OPAQUE, fnab_dl_Plane_mesh_layer_1),
 		GEO_DISPLAY_LIST(LAYER_TRANSPARENT, fnab_dl_Plane_mesh_layer_5),
+		GEO_BILLBOARD_WITH_PARAMS_AND_DL(LAYER_ALPHA, 2232, 64, -2371, fnab_dl_treeboard_mesh_layer_4),
+		GEO_BILLBOARD_WITH_PARAMS_AND_DL(LAYER_ALPHA, 2249, 64, -2371, fnab_dl_treeboard_001_mesh_layer_4),
+		GEO_BILLBOARD_WITH_PARAMS_AND_DL(LAYER_ALPHA, 2265, 64, -2371, fnab_dl_treeboard_002_mesh_layer_4),
 	GEO_CLOSE_NODE(),
 	GEO_RETURN(),
 };

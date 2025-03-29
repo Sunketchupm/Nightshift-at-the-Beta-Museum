@@ -6092,3 +6092,11 @@ const BehaviorScript bhvCamera[] = {
         CALL_NATIVE(bhv_fnab_camera),
     END_LOOP(),
 };
+
+const BehaviorScript bhvFanBlade[] = {
+    BEGIN(OBJ_LIST_DEFAULT),
+    OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
+    BEGIN_LOOP(),
+        ADD_INT(oFaceAngleRoll, 0x200),
+    END_LOOP(),
+};

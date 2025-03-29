@@ -331,4 +331,16 @@ extern const Gfx white_particle_small_dl_end[];
 extern const Gfx white_particle_small_dl[];
 extern const Gfx white_particle_small_unused_dl[];
 
+#include "fanblade/geo_header.h"
+
+#include "staticscreen/header.h"
+
+#include "cammap/header.h"
+
+#include "mouse2/header.h"
+
+#include "mouse1/header.h"
+
+#include "cb/header.h"
+
 #endif
