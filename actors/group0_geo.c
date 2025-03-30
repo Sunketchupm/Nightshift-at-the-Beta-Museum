@@ -19,3 +19,5 @@
 
 #include "fanblade/geo.inc.c"
 #include "darkness/geo.inc.c"
+#include "moff/geo.inc.c"
+#include "mon/geo.inc.c"

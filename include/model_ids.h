@@ -577,6 +577,8 @@ enum {
     MODEL_FANBLADE = 255,
     MODEL_DARKNESS,
     MODEL_BETABULLY,
+    MODEL_MON,
+    MODEL_MOFF,
 };
 
 #endif // MODEL_IDS_H

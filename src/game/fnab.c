@@ -129,6 +129,7 @@ Vec3f fnabCameraPos;
 Vec3f fnabCameraFoc;
 struct Object * officePovCamera = NULL;
 struct Object * darknessObject = NULL;
+struct Object * monitorScreenObject = NULL;
 
 u8 fnab_cam_index = 0;
 u8 fnab_cam_last_index = 5;
@@ -668,6 +669,11 @@ void fnab_init(void) {
     darknessObject->oPosY = 0.0f;
     darknessObject->oPosZ = 0.0f;
 
+    monitorScreenObject = spawn_object(gMarioObject,MODEL_MOFF,bhvStaticObject);
+    monitorScreenObject->oPosX = 0.0f;
+    monitorScreenObject->oPosY = 0.0f;
+    monitorScreenObject->oPosZ = 0.0f;
+
     camera_mouse_x = -50.0f;
     camera_mouse_y = -50.0f;
 
@@ -690,6 +696,7 @@ void fnab_loop(void) {
         fnab_enemy_step(&enemyList[i]);
     }
 
+    monitorScreenObject->header.gfx.sharedChild = gLoadedGraphNodes[MODEL_MOFF];
     switch(fnab_office_state) {
         case OFFICE_STATE_DESK:
             fnab_cam_snap_or_lerp = 1;
@@ -743,6 +750,7 @@ void fnab_loop(void) {
             }
             break;
         case OFFICE_STATE_LEAN_CAMERA:
+            monitorScreenObject->header.gfx.sharedChild = gLoadedGraphNodes[MODEL_MON];
             if (fnab_office_statetimer > 10) {
                 fnab_cam_snap_or_lerp = 0;
                 fnab_office_statetimer = 0;
@@ -751,6 +759,7 @@ void fnab_loop(void) {
             }
             break;
         case OFFICE_STATE_CAMERA:
+            monitorScreenObject->header.gfx.sharedChild = gLoadedGraphNodes[MODEL_MON];
             camera_mouse_x += gPlayer1Controller->rawStickX/15.0f;
             camera_mouse_y += gPlayer1Controller->rawStickY/15.0f;
             camera_mouse_selecting = FALSE;
@@ -834,6 +843,7 @@ void fnab_loop(void) {
 
             break;
         case OFFICE_STATE_LEAVE_CAMERA:
+            monitorScreenObject->header.gfx.sharedChild = gLoadedGraphNodes[MODEL_MON];
             if (fnab_office_statetimer == 2) {
                 fnab_cam_snap_or_lerp = 1;
                 fnab_cam_index = 0;
@@ -853,7 +863,7 @@ void fnab_loop(void) {
 
                 if (!breakerDoFix&&(gPlayer1Controller->buttonPressed & A_BUTTON)) {
                     breakerDoFix = TRUE;
-                    breakerFixing = 1.0f;
+                    breakerFixing = 0.0f;
                 }
 
                 if (gPlayer1Controller->buttonPressed & B_BUTTON) {

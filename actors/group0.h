@@ -349,4 +349,8 @@ extern const Gfx white_particle_small_unused_dl[];
 
 #include "radar/header.h"
 
+#include "moff/geo_header.h"
+
+#include "mon/geo_header.h"
+
 #endif

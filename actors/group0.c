@@ -40,3 +40,5 @@
 #include "darkness/model.inc.c"
 #include "snd/model.inc.c"
 #include "radar/model.inc.c"
+#include "moff/model.inc.c"
+#include "mon/model.inc.c"
