@@ -5,7 +5,7 @@ include util.mk
 # Default target
 default: all
 
-TARGET_STRING := nsabm
+TARGET_STRING := nsatbm
 
 # Preprocessor definitions
 DEFINES :=

@@ -150,6 +150,12 @@ u8 snd_timer = 0;
 u8 radar_timer = 0;
 u8 vent_flush_timer = 0;
 
+s8 breakerIndex = 0;
+u8 breakerCharges[3] = {4,4,2};
+u8 breakerChargesMax[3] = {4,4,2};
+f32 breakerFixing = 0.0f;
+u8 breakerDoFix = FALSE;
+
 struct enemyInfo motosInfo = {
     .homeX = 5,
     .homeY = 0,
@@ -373,6 +379,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                         if (cfe != &enemyList[i] && enemyList[i].x == cfe->x && enemyList[i].y == cfe->y) {
                             cfe->x += dirOffset[dir][0];
                             cfe->y += dirOffset[dir][1];
+                            cfe->state = FNABE_WANDER;
                             fnab_enemy_set_target(cfe);
                         }
                     }
@@ -494,12 +501,6 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                 fnab_office_statetimer = 0;
                 cfe->state = FNABE_JUMPSCARE;
 
-                
-                if (fnab_office_state == OFFICE_STATE_HIDE) {
-                    cfe->jumpscareYoffset = 75.f;
-                } else {
-                    cfe->jumpscareYoffset = -75.f;
-                }
                 cfe->jumpscareYoffset = -75.f;
                 obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_JUMPSCARE]);
             }
@@ -507,6 +508,18 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
     }
 
     cfe->modelObj->header.gfx.animInfo.animFrame = cfe->animFrameHold%cfe->modelObj->header.gfx.animInfo.curAnim->loopEnd;
+}
+
+void print_breaker_status(u16 x, u16 y) {
+    print_text_fmt_int(x, y, "DOORS", 0);
+    print_text_fmt_int(x, y-20, "AUDIO", 0);
+    print_text_fmt_int(x, y-40, "UTILITY", 0);
+
+    for (int i = 0; i<3; i++) {
+        for (int j = 0; j<breakerCharges[i]; j++) {
+            print_text_fmt_int(x+90+j*4, y-i*20, "I", 0);
+        }
+    }
 }
 
 void fnab_render_2d(void) {
@@ -596,6 +609,7 @@ void fnab_render_2d(void) {
         }
     }
     if (fnab_office_state == OFFICE_STATE_CAMERA) {
+        print_breaker_status(190,220);
         print_text_fmt_int(10, 5, securityCameras[fnab_cam_index].name, 0);
 
         gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
@@ -632,6 +646,20 @@ void fnab_render_2d(void) {
 
         gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
     }
+    if (fnab_office_state == OFFICE_STATE_BREAKER && fnab_office_statetimer > 10) {
+        print_text_fmt_int(90, 150-breakerIndex*20, "^", 0);
+        print_breaker_status(110,150);
+
+        if (breakerDoFix) {
+            for (int i = 0; i<7;i++) {
+                char * printChar = ".";
+                if (breakerFixing >= i) {
+                    printChar = "^";
+                }
+                print_text_fmt_int(90+i*20, 80, printChar, 0);
+            }
+        }
+    }
 }
 
 void fnab_init(void) {
@@ -646,8 +674,11 @@ void fnab_init(void) {
     fnab_enemy_init(&enemyList[ENEMY_MOTOS],&motosInfo);
     fnab_enemy_init(&enemyList[ENEMY_BULLY],&bullyInfo);
 
-
     fnab_cam_snap_or_lerp = 0;
+
+    for (int i = 0; i < 3; i++) {
+        breakerCharges[i] = breakerChargesMax[i];
+    }
 }
 
 #define OACTHRESH 0x600
@@ -683,6 +714,11 @@ void fnab_loop(void) {
                         fnab_cam_index = 1;
                         fnab_office_statetimer = 0;
                         fnab_office_state = OFFICE_STATE_LEAN_CAMERA;
+                        break;
+                    case OACTION_PANEL:
+                        fnab_cam_index = 4;
+                        fnab_office_statetimer = 0;
+                        fnab_office_state = OFFICE_STATE_BREAKER;
                         break;
                 }
             }
@@ -741,7 +777,9 @@ void fnab_loop(void) {
             }
 
             // place sound
-            if ((gPlayer1Controller->buttonPressed & Z_TRIG)&&(snd_timer==0)) {
+            if ((gPlayer1Controller->buttonPressed & Z_TRIG)&&(snd_timer==0)&&(breakerCharges[1]>0)) {
+                breakerCharges[1]--;
+
                 snd_x = -camera_mouse_x/10.0f;
                 snd_y = -camera_mouse_y/10.0f;
                 if (get_map_data(snd_x,snd_y)>0) {
@@ -766,7 +804,8 @@ void fnab_loop(void) {
             }
 
             //activate vent flush
-            if ((gPlayer1Controller->buttonPressed & L_TRIG)&&(vent_flush_timer==0)) {
+            if ((gPlayer1Controller->buttonPressed & L_TRIG)&&(vent_flush_timer==0)&&(breakerCharges[2]>0)) {
+                breakerCharges[2]--;
                 vent_flush_timer = 200;
 
                 for (int i = 0; i<ENEMY_COUNT; i++) {
@@ -782,7 +821,8 @@ void fnab_loop(void) {
             }
 
             //activate radar
-            if ((gPlayer1Controller->buttonPressed & R_TRIG)&&(radar_timer==0)) {
+            if ((gPlayer1Controller->buttonPressed & R_TRIG)&&(radar_timer==0)&&(breakerCharges[2]>0)) {
+                breakerCharges[2]--;
                 radar_timer = 200;
             }
 
@@ -802,6 +842,25 @@ void fnab_loop(void) {
                 fnab_office_statetimer = 0;
                 fnab_cam_index = 0;
                 fnab_office_state = OFFICE_STATE_DESK;
+            }
+            break;
+        case OFFICE_STATE_BREAKER:
+            if (fnab_office_statetimer > 10) {
+
+                if (!breakerDoFix) {
+                    handle_menu_scrolling(MENU_SCROLL_VERTICAL, &breakerIndex, 0, 2);
+                }
+
+                if (!breakerDoFix&&(gPlayer1Controller->buttonPressed & A_BUTTON)) {
+                    breakerDoFix = TRUE;
+                    breakerFixing = 1.0f;
+                }
+
+                if (gPlayer1Controller->buttonPressed & B_BUTTON) {
+                    fnab_office_state = OFFICE_STATE_DESK;
+                    fnab_cam_index = 0;
+                    fnab_office_statetimer = 0;
+                }
             }
             break;
         case OFFICE_STATE_JUMPSCARED:
@@ -838,5 +897,12 @@ void fnab_loop(void) {
     }
     if (vent_flush_timer > 0) {
         vent_flush_timer --;
+    }
+    if (breakerDoFix == TRUE) {
+        breakerFixing += .03f;
+        if (breakerFixing >= 7.f) {
+            breakerDoFix = FALSE;
+            breakerCharges[breakerIndex] = breakerChargesMax[breakerIndex];
+        }
     }
 }
