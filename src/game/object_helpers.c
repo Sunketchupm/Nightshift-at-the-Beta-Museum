@@ -514,6 +514,12 @@ void cur_obj_init_animation_with_accel_and_sound(s32 animIndex, f32 accel) {
     o->oSoundStateID = animIndex;
 }
 
+void obj_init_animation_with_sound_notshit(struct Object * obj, s32 animIndex) {
+    struct Animation **anims = obj->oAnimations;
+    geo_obj_init_animation(&obj->header.gfx, &anims[animIndex]);
+    o->oSoundStateID = animIndex;
+}
+
 void obj_init_animation_with_sound(struct Object *obj, const struct Animation * const* animations, s32 animIndex) {
     struct Animation **anims = (struct Animation **)animations;
     obj->oAnimations = (struct Animation **)animations;

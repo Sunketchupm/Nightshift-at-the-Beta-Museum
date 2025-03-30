@@ -18,3 +18,4 @@
 #include "mario/geo.inc.c"
 
 #include "fanblade/geo.inc.c"
+#include "darkness/geo.inc.c"

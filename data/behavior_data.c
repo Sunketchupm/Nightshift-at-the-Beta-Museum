@@ -6075,16 +6075,6 @@ const BehaviorScript bhvIntroScene[] = {
     END_LOOP(),
 };
 
-const BehaviorScript bhvMotos[] = {
-    BEGIN(OBJ_LIST_DEFAULT),
-    OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
-    LOAD_ANIMATIONS(oAnimations, motos_anime),
-    ANIMATE(0),
-    SCALE(/*Unused*/ 0, /*Field*/ 120),
-    BEGIN_LOOP(),
-    END_LOOP(),
-};
-
 const BehaviorScript bhvCamera[] = {
     BEGIN(OBJ_LIST_DEFAULT),
     OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
@@ -6098,5 +6088,35 @@ const BehaviorScript bhvFanBlade[] = {
     OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
     BEGIN_LOOP(),
         ADD_INT(oFaceAngleRoll, 0x200),
+    END_LOOP(),
+};
+
+const BehaviorScript bhvBlargg[] = {
+    BEGIN(OBJ_LIST_DEFAULT),
+    OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
+    LOAD_ANIMATIONS(oAnimations, blargg_seg5_anims_0500616C),
+    ANIMATE(0),
+    SCALE(/*Unused*/ 0, /*Field*/ 50),
+    BEGIN_LOOP(),
+    END_LOOP(),
+};
+
+const BehaviorScript bhvBetaBully[] = {
+    BEGIN(OBJ_LIST_DEFAULT),
+    OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
+    LOAD_ANIMATIONS(oAnimations, bully_seg5_anims_0500470C),
+    ANIMATE(0),
+    SCALE(/*Unused*/ 0, /*Field*/ 50),
+    BEGIN_LOOP(),
+    END_LOOP(),
+};
+
+const BehaviorScript bhvMotos[] = {
+    BEGIN(OBJ_LIST_DEFAULT),
+    OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
+    LOAD_ANIMATIONS(oAnimations, motos_anime),
+    ANIMATE(6),
+    SCALE(/*Unused*/ 0, /*Field*/ 120),
+    BEGIN_LOOP(),
     END_LOOP(),
 };

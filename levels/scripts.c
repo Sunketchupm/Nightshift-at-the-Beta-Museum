@@ -113,6 +113,7 @@ const LevelScript level_main_scripts_entry[] = {
     LOAD_MODEL_FROM_GEO(MODEL_CARTOON_STAR,            cartoon_star_geo),
 
     LOAD_MODEL_FROM_GEO(MODEL_FANBLADE, fanblade_geo),
+    LOAD_MODEL_FROM_GEO(MODEL_DARKNESS, darkness_geo),
 #ifdef IA8_30FPS_COINS
     LOAD_MODEL_FROM_GEO(MODEL_SILVER_COIN,             silver_coin_geo),
     LOAD_MODEL_FROM_GEO(MODEL_SILVER_COIN_NO_SHADOW,   silver_coin_no_shadow_geo),
@@ -217,6 +218,7 @@ const LevelScript script_func_global_3[] = {
     LOAD_MODEL_FROM_GEO(MODEL_BULLY,                   bully_geo),
     LOAD_MODEL_FROM_GEO(MODEL_BULLY_BOSS,              bully_boss_geo),
     LOAD_MODEL_FROM_GEO(MODEL_MOTOS, RCP_HmsEnemymotos_basedata_A),
+    LOAD_MODEL_FROM_GEO(MODEL_BETABULLY,             chilly_chief_geo),
     RETURN(),
 };
 
@@ -341,7 +343,6 @@ const LevelScript script_func_global_16[] = {
 };
 
 const LevelScript script_func_global_17[] = {
-    LOAD_MODEL_FROM_GEO(MODEL_CHILL_BULLY,             chilly_chief_geo),
     LOAD_MODEL_FROM_GEO(MODEL_BIG_CHILL_BULLY,         chilly_chief_big_geo),
     LOAD_MODEL_FROM_GEO(MODEL_MONEYBAG,                moneybag_geo),
     RETURN(),

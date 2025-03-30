@@ -343,4 +343,10 @@ extern const Gfx white_particle_small_unused_dl[];
 
 #include "cb/header.h"
 
+#include "darkness/geo_header.h"
+
+#include "snd/header.h"
+
+#include "radar/header.h"
+
 #endif

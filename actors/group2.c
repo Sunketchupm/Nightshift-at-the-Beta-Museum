@@ -19,3 +19,7 @@ UNUSED static const u64 binid_1 = 1;
 #include "motos/model.inc.c"
 #include "motos/anims/anim.inc.c"
 UNUSED static const u64 binid_2 = 2;
+
+#include "chillychief/model.inc.c"
+#include "chillychief/anims/data.inc.c"
+#include "chillychief/anims/table.inc.c"

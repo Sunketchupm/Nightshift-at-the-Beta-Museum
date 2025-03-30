@@ -37,3 +37,6 @@
 #include "mouse2/model.inc.c"
 #include "mouse1/model.inc.c"
 #include "cb/model.inc.c"
+#include "darkness/model.inc.c"
+#include "snd/model.inc.c"
+#include "radar/model.inc.c"

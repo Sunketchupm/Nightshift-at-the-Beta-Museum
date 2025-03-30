@@ -1,0 +1,11 @@
+extern u8 snd_snd_ia8[];
+extern Vtx snd_snd_mesh_vtx_cull[8];
+extern Vtx snd_snd_mesh_vtx_0[24];
+extern Gfx snd_snd_mesh_tri_0[];
+extern Vtx snd_snd_mesh_vtx_1[4];
+extern Gfx snd_snd_mesh_tri_1[];
+extern Gfx mat_snd_lite_nz[];
+extern Gfx mat_revert_snd_lite_nz[];
+extern Gfx mat_snd_snd[];
+extern Gfx mat_revert_snd_snd[];
+extern Gfx snd_snd_mesh[];

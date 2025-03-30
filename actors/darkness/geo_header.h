@@ -1,0 +1,11 @@
+extern const GeoLayout darkness_geo[];
+extern Vtx darkness_darkness_mesh_layer_1_vtx_0[18];
+extern Gfx darkness_darkness_mesh_layer_1_tri_0[];
+extern Vtx darkness_darkness_mesh_layer_5_vtx_0[24];
+extern Gfx darkness_darkness_mesh_layer_5_tri_0[];
+extern Gfx mat_darkness_black[];
+extern Gfx mat_revert_darkness_black[];
+extern Gfx mat_darkness_lite[];
+extern Gfx mat_revert_darkness_lite[];
+extern Gfx darkness_darkness_mesh_layer_1[];
+extern Gfx darkness_darkness_mesh_layer_5[];

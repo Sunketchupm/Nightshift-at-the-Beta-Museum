@@ -8,9 +8,6 @@
 #include "types.h"
 #include "make_const_nonconst.h"
 
-#include "chillychief/model.inc.c"
-#include "chillychief/anims/data.inc.c"
-#include "chillychief/anims/table.inc.c"
 UNUSED static const u64 binid_0 = 0;
 
 #include "moneybag/model.inc.c"

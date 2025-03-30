@@ -5,25 +5,70 @@
 
 struct fnabEnemyProperties {
     u8 homex;
-    u8 homey;
+    u8 homeY;
 };
 
 enum fnabEnemyState {
     FNABE_WANDER,
     FNABE_ATTACK,
+    FNABE_DISTRACTED,
+    FNABE_FLUSHED,
     
     FNABE_PRIMED,
     FNABE_PRIMED_LEFT,
+    FNABE_PRIMED_RIGHT,
+    FNABE_PRIMED_VENT,
+
+    FNABE_JUMPSCARE
+};
+
+enum fnabEnemyId {
+    ENEMY_MOTOS,
+    ENEMY_BULLY,
+    ENEMY_DANIEL,
+    ENEMY_MARIO,
+    ENEMY_LUIGI,
+    ENEMY_WARIO,
+    ENEMY_COUNT
+};
+
+enum animSlot {
+    ANIMSLOT_NORMAL,
+    ANIMSLOT_VENT,
+    ANIMSLOT_WINDOW,
+    ANIMSLOT_JUMPSCARE
+};
+
+struct enemyInfo {
+    u8 homeX;
+    u8 homeY;
+    u8 canVent;
+    BehaviorScript * modelBhv;
+    u16 modelId;
+    f32 frequency;
+    f32 tableAttackChance;
+
+    u8 choice[3];
+    u8 anim[4];
+
+    f32 jumpscareScale;
 };
 
 struct fnabEnemy {
+    u8 active;
     s8 x;
     s8 y;
+    s8 ventFlushX;
+    s8 ventFlushY;
     s8 tx;
     s8 ty;
     u8 state;
+    u8 attackLocation;
     f32 progress;
+    u16 animFrameHold;
+    f32 jumpscareYoffset;
     struct Object * modelObj;
+    struct enemyInfo * info;
 };
 
 struct pathBranch {
@@ -50,7 +95,8 @@ enum officeState {
     OFFICE_STATE_UNHIDE,
     OFFICE_STATE_LEAN_CAMERA,
     OFFICE_STATE_CAMERA,
-    OFFICE_STATE_LEAVE_CAMERA
+    OFFICE_STATE_LEAVE_CAMERA,
+    OFFICE_STATE_JUMPSCARED
 };
 
 struct securityCameraInfo {

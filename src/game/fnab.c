@@ -10,29 +10,30 @@
 #include "object_helpers.h"
 #include "actors/group0.h"
 #include "ingame_menu.h"
+#include "engine/surface_collision.h"
 
 #define _ 0, // Wall / Nothing
 #define F 1, // Floor  
 #define V 2, // Vent
 #define W 3, // Visible from Window
-#define L 4, // Left door (Inverted in array)
+#define A 4, // Attack zone
 
 u8 fnabMap[20][20] = {
 {F F F F _ F F F _ F F F _ _ _ _ _ _ _ _},
-{F F F F _ F F F _ F F F _ F _ F _ _ _ _},
+{F _ F F _ F F F _ F _ _ _ F _ F _ _ _ _},
 {F F F F _ _ F F _ F F _ _ F F F F _ _ _},
-{F F F F V V F F F F F V V _ _ _ F _ _ _},
+{F _ F F V V F F F F F V V _ _ _ F _ _ _},
 {F F F F _ _ F _ _ F _ _ F F F F F F F _},
-{F F F F _ _ F _ F F F _ F _ _ _ F _ F _},
+{F _ F F _ _ F _ F F F _ F _ _ _ F _ F _},
 {F F F F F F F F F _ F F F _ _ _ F _ F _},
 {F _ _ _ _ F _ _ F F F _ F _ _ _ F _ F _},
 {F F F _ F F F _ _ _ _ _ W _ _ _ F _ F _},
 {F F F _ F F F _ _ _ _ _ W _ _ _ F _ F _},
-{F F F _ _ V _ _ _ F W W F _ _ _ F _ F _},
-{_ _ _ _ _ V _ _ _ L _ _ _ F F F F _ F _},
-{_ _ _ _ _ V _ _ _ _ _ _ _ _ _ _ _ _ _ _},
-{_ _ _ _ _ V _ _ _ _ _ V _ _ _ _ _ _ _ _},
-{_ _ _ _ _ V V V V V V V _ _ _ _ _ _ _ _},
+{F F F _ _ V _ _ _ W W W W _ _ _ F _ F _},
+{V _ _ _ _ V _ _ _ A _ _ _ A F F F _ F _},
+{V V V V V V _ _ _ _ _ _ _ _ _ _ _ _ _ _},
+{_ _ _ _ _ V _ _ _ _ _ A _ _ _ _ _ _ _ _},
+{_ _ _ _ _ V V V V V V W _ _ _ _ _ _ _ _},
 {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _},
 {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _},
 {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _},
@@ -44,7 +45,7 @@ u8 fnabMap[20][20] = {
 #undef W
 #undef V
 #undef W
-#undef L
+#undef A
 
 #define MAP_SIZE 20
 #define PATH_BRANCH_STACK_CT 200
@@ -127,20 +128,69 @@ f32 deltaTime = 1.0f;
 Vec3f fnabCameraPos;
 Vec3f fnabCameraFoc;
 struct Object * officePovCamera = NULL;
+struct Object * darknessObject = NULL;
 
 u8 fnab_cam_index = 0;
+u8 fnab_cam_last_index = 5;
 u8 fnab_cam_snap_or_lerp = 0;
 u8 fnab_office_state = OFFICE_STATE_DESK;
 u8 fnab_office_action = OACTION_HIDE;
 int fnab_office_statetimer = 0;
 
 u8 camera_interference_timer = 0;
+u8 light_interference_timer = 0;
 
 f32 camera_mouse_x = 0.0f;
 f32 camera_mouse_y = 0.0f;
 u8 camera_mouse_selecting = FALSE;
 
-#define SECURITY_CAMERA_CT 15
+u8 snd_x = -1;
+u8 snd_y = -1;
+u8 snd_timer = 0;
+u8 radar_timer = 0;
+u8 vent_flush_timer = 0;
+
+struct enemyInfo motosInfo = {
+    .homeX = 5,
+    .homeY = 0,
+    .canVent = FALSE,
+    .modelBhv = bhvMotos,
+    .modelId = MODEL_MOTOS,
+    .frequency = 0.02f,
+    .tableAttackChance = .1f,
+
+    .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT},
+
+    .anim[ANIMSLOT_NORMAL] = 6,
+    .anim[ANIMSLOT_WINDOW] = 8,
+    .anim[ANIMSLOT_VENT] = 0,
+    .anim[ANIMSLOT_JUMPSCARE] = 6,
+
+    .jumpscareScale = .6f,
+};
+
+struct enemyInfo bullyInfo = {
+    .homeX = 7,
+    .homeY = 0,
+    .canVent = TRUE,
+    .modelBhv = bhvBetaBully,
+    .modelId = MODEL_BETABULLY,
+    .frequency = 0.03f,
+    .tableAttackChance = .9f,
+
+    .choice = {FNABE_PRIMED_VENT,FNABE_PRIMED_VENT,FNABE_PRIMED_RIGHT},
+
+    .anim[ANIMSLOT_NORMAL] = 0,
+    .anim[ANIMSLOT_WINDOW] = 0,
+    .anim[ANIMSLOT_VENT] = 0,
+    .anim[ANIMSLOT_JUMPSCARE] = 3,
+
+    .jumpscareScale = .55f,
+};
+
+struct fnabEnemy enemyList[ENEMY_COUNT];
+
+#define SECURITY_CAMERA_CT 20
 struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
     {.name = NULL},
     {.name = NULL},
@@ -156,6 +206,9 @@ struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
     {.name = "RESTROOMS"},
     {.name = "VENT"},
     {.name = "HALL R"},
+    {.name = "SPACEWORLD CASTLE"},
+    {.name = "CARTRIDGE ROOM"},
+    {.name = "CLOSET"},
 };
 
 void bhv_fnab_camera(void) {
@@ -207,35 +260,95 @@ void bhv_fnab_camera(void) {
             fnabCameraFocTarget[1] = o->oPosY + sins(o->oFaceAnglePitch) * -5.0f;
             fnabCameraFocTarget[2] = o->oPosZ + coss(o->oFaceAngleYaw) * coss(o->oFaceAnglePitch) * 5.0f;
             
+            f32 lerpspeed = .2f;
+            if (fnab_office_state == OFFICE_STATE_JUMPSCARED) {
+                lerpspeed = .3f;
+            }
+
             for (int i = 0; i < 3; i++) {
-                fnabCameraPos[i] = approach_f32_asymptotic(fnabCameraPos[i],fnabCameraPosTarget[i],.2f);
-                fnabCameraFoc[i] = approach_f32_asymptotic(fnabCameraFoc[i],fnabCameraFocTarget[i],.2f);
+                fnabCameraPos[i] = approach_f32_asymptotic(fnabCameraPos[i],fnabCameraPosTarget[i],lerpspeed);
+                fnabCameraFoc[i] = approach_f32_asymptotic(fnabCameraFoc[i],fnabCameraFocTarget[i],lerpspeed);
             }
         }
     }
 }
 
-void fnab_enemy_init(struct fnabEnemy * cfe) {
+void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info) {
+    cfe->active = TRUE;
     cfe->progress = 0.0f;
-    cfe->x = 5;
-    cfe->y = 0;
-    cfe->tx = 9;
-    cfe->ty = 11;
+    cfe->x = info->homeX;
+    cfe->y = info->homeY;
+    cfe->tx = info->homeX;
+    cfe->ty = info->homeY;
     cfe->state = FNABE_WANDER;
-    cfe->modelObj = spawn_object(gMarioObject,MODEL_MOTOS,bhvMotos);
+    cfe->modelObj = spawn_object(gMarioObject,info->modelId,info->modelBhv);
+    cfe->info = info;
+    cfe->animFrameHold = random_u16();
  
     cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f;
     cfe->modelObj->oPosZ = (200.0f*cfe->y)+100.0f;
 }
 
+void fnab_enemy_set_target(struct fnabEnemy * cfe) {
+    //set new target based on state
+    switch(cfe->state) {
+        case FNABE_WANDER:;
+            u8 random_x;
+            u8 random_y;
+            u8 emergency_break = 0;
+            do {
+                random_x = cfe->x + 5 - random_u16()%10;
+                random_y = cfe->y + 5 -random_u16()%10;
+                emergency_break++;
+            } while (get_map_data(random_x,random_y)==0 && emergency_break < 10);
+            cfe->tx = random_x;
+            cfe->ty = random_y;
+            break;
+        case FNABE_ATTACK:;
+            u8 attack_location_index = random_u16()%3;
+            cfe->attackLocation = cfe->info->choice[attack_location_index];
+            switch(cfe->attackLocation) {
+                case FNABE_PRIMED_LEFT:
+                    cfe->tx = 9;
+                    cfe->ty = 11;
+                    break;
+                case FNABE_PRIMED_RIGHT:
+                    cfe->tx = 13;
+                    cfe->ty = 11;
+                    break;
+                case FNABE_PRIMED_VENT:
+                    cfe->tx = 11;
+                    cfe->ty = 13;
+                    break;
+            }
+            break;
+    }
+}
+
 void fnab_enemy_step(struct fnabEnemy * cfe) {
-    cfe->progress += 0.01f;
+    if (!cfe->active) {return;}
 
-    if (cfe->progress >= 1.0f) {
-        cfe->progress -= 1.0f;
+    if (cfe->state == FNABE_JUMPSCARE) {
+        //play_sound(SOUND_OBJ2_SMALL_BULLY_ATTACKED, gGlobalSoundSource);
+        cfe->modelObj->oPosX = officePovCamera->oPosX + sins(officePovCamera->oFaceAngleYaw) * coss(officePovCamera->oFaceAnglePitch) * 75.0f;
+        cfe->modelObj->oPosY = officePovCamera->oPosY + -45.0f + cfe->jumpscareYoffset; // + sins(officePovCamera->oFaceAnglePitch) * -5.0f;
+        cfe->modelObj->oPosZ = officePovCamera->oPosZ + coss(officePovCamera->oFaceAngleYaw) * coss(officePovCamera->oFaceAnglePitch) * 75.0f;
+        cfe->modelObj->oFaceAngleYaw = obj_angle_to_object(cfe->modelObj,officePovCamera);
+        obj_scale(cfe->modelObj,cfe->info->jumpscareScale);
+        cfe->modelObj->header.gfx.animInfo.animFrame+=2;
+        cfe->jumpscareYoffset *= .7f;
+        return;
+    }
 
-        if (cfe->state < FNABE_PRIMED) {
-            // Wandering around map
+    cfe->progress += cfe->info->frequency;
+    if (cfe->state == FNABE_FLUSHED) {
+        cfe->progress += cfe->info->frequency*2.0f;
+    }
+
+    if (cfe->state < FNABE_PRIMED) {
+        // Wandering around map
+        if (cfe->progress >= 1.0f) {
+            cfe->progress -= 1.0f;
 
             camera_interference_timer = 10;
 
@@ -243,40 +356,173 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
             u16 steps = 1+(random_u16()%3);
             if (get_map_data(cfe->x,cfe->y) == 3) {
                 steps = 1;
+                light_interference_timer = 10;
             }
             for (int i = 0; i < steps; i++) {
-                u8 dir = path_find(cfe->tx,cfe->ty,cfe->x,cfe->y,FALSE);
+                cfe->animFrameHold = random_u16();
+
+                u8 dir = path_find(cfe->tx,cfe->ty,cfe->x,cfe->y,cfe->info->canVent);
                 bcopy(&fnabMap,&pathfindingMap,MAP_SIZE*MAP_SIZE);
 
                 cfe->x -= dirOffset[dir][0];
                 cfe->y -= dirOffset[dir][1];
 
+                //if touching another enemy, back up
+                for (int i = 0; i < ENEMY_COUNT; i++) {
+                    if (enemyList[i].active) {
+                        if (cfe != &enemyList[i] && enemyList[i].x == cfe->x && enemyList[i].y == cfe->y) {
+                            cfe->x += dirOffset[dir][0];
+                            cfe->y += dirOffset[dir][1];
+                            fnab_enemy_set_target(cfe);
+                        }
+                    }
+                }
+
                 tile_landed = get_map_data(cfe->x,cfe->y);
 
-                f32 model_x_offset = 0.0f;
-                switch(tile_landed) {
-                    case 4:
-                        cfe->state = FNABE_PRIMED_LEFT;
-                        model_x_offset = 50.0f;
-                        break;
+                if (tile_landed == 1) {
+                    cfe->ventFlushX = cfe->x;
+                    cfe->ventFlushY = cfe->y;
+                }
+
+                //what to do when at destination
+                if (dir >= MAPDIR_NO_PATH) {
+                    switch(cfe->state) {
+                        case FNABE_WANDER:
+                            if (random_u16()%2==0) {
+                                //1/2 chance to start attacking
+                                cfe->state = FNABE_ATTACK;
+                            }
+                            break;
+                        case FNABE_DISTRACTED:
+                        case FNABE_FLUSHED:
+                            cfe->state = FNABE_WANDER;
+                            break;
+                        case FNABE_ATTACK:
+                            //weird, but needed
+                            cfe->state = FNABE_WANDER;
+                            break;
+                    }
+
+                    fnab_enemy_set_target(cfe);
+                }
+
+                if (tile_landed == 4) {
+                    cfe->state = cfe->attackLocation;
+                    cfe->progress = 0.0f;
+                }
+
+                f32 zoff = 0.0f;
+                if (cfe->state == FNABE_PRIMED_LEFT || cfe->state == FNABE_PRIMED_RIGHT) {
+                    zoff = 70.0f;
                 }
 
                 cfe->modelObj->oFaceAngleYaw = (dir*0x4000) + 0x8000;
-                cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f+model_x_offset;
-                cfe->modelObj->oPosZ = (-200.0f*cfe->y)-100.0f;
+                cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f;
+                cfe->modelObj->oPosZ = (-200.0f*cfe->y)-100.0f+zoff;
+                cfe->modelObj->oPosY = find_floor_height(cfe->modelObj->oPosX,500.0f,cfe->modelObj->oPosZ);
             }
             if (tile_landed >= 3) {
                 cfe->modelObj->oFaceAngleYaw = obj_angle_to_object(cfe->modelObj,officePovCamera); //stare at the player
+                light_interference_timer = 10;
             }
-        } else {
-            // About to attack
+            //set tile animation
+            switch(tile_landed) {
+                case 1:
+                    obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_NORMAL]);
+                    break;
+                case 2:
+                    obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_VENT]);
+                    break;
+                case 3:
+                case 4:
+                    obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_WINDOW]);
+                    break;
+            }
+        }
+    } else {
+        // About to attack
+        if (cfe->progress > 5.0f) { //waittime til kill
+
+            u8 canjumpscare = TRUE;
+            switch(cfe->attackLocation) {
+                case FNABE_PRIMED_LEFT:
+                    if (officePovCamera->oFaceAngleYaw < 0) {
+                        canjumpscare = FALSE;
+                    }
+                break;
+                case FNABE_PRIMED_RIGHT:
+                    if (officePovCamera->oFaceAngleYaw >= 0) {
+                        canjumpscare = FALSE;
+                    }
+                break;
+            }
+            //camera = unconditional jumpscare
+            if (fnab_office_state == OFFICE_STATE_CAMERA) {
+                canjumpscare = TRUE;
+            }
+
+            //if player is under desk
+            if (fnab_office_state == OFFICE_STATE_HIDE || fnab_office_state == OFFICE_STATE_UNHIDE) {
+                if (cfe->attackLocation == FNABE_PRIMED_VENT) {
+                    canjumpscare = FALSE; //cant jumpscare if being stared at
+                } else {
+                    f32 saving_roll = random_float();
+                    if (saving_roll > cfe->info->tableAttackChance) {
+                        cfe->x = cfe->info->homeX;
+                        cfe->y = cfe->info->homeY;
+                        cfe->state = FNABE_WANDER;
+                        cfe->progress = 1.0f;
+                        light_interference_timer = 10;
+                        canjumpscare = FALSE;
+                    } else {
+                        canjumpscare = TRUE;
+                    }
+                }
+            }
+            if (fnab_office_state == OFFICE_STATE_JUMPSCARED) {
+                //prevent double jumpscaring
+                canjumpscare = FALSE;
+            }
+
+            if (canjumpscare) {
+                if (fnab_office_state == OFFICE_STATE_CAMERA) {
+                    fnab_cam_snap_or_lerp = 0;
+                    fnab_cam_index = 1;
+                }
+                fnab_office_state = OFFICE_STATE_JUMPSCARED;
+                fnab_office_statetimer = 0;
+                cfe->state = FNABE_JUMPSCARE;
+
+                
+                if (fnab_office_state == OFFICE_STATE_HIDE) {
+                    cfe->jumpscareYoffset = 75.f;
+                } else {
+                    cfe->jumpscareYoffset = -75.f;
+                }
+                cfe->jumpscareYoffset = -75.f;
+                obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_JUMPSCARE]);
+            }
         }
     }
+
+    cfe->modelObj->header.gfx.animInfo.animFrame = cfe->animFrameHold%cfe->modelObj->header.gfx.animInfo.curAnim->loopEnd;
 }
 
-struct fnabEnemy testEnemy;
-
 void fnab_render_2d(void) {
+
+    //GAME OVER RENDER
+    if (fnab_office_state == OFFICE_STATE_JUMPSCARED && fnab_office_statetimer > 30) {
+        //render camera static
+        gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+        create_dl_translation_matrix(MENU_MTX_PUSH, 160, 120, 0);
+        gSPDisplayList(gDisplayListHead++, staticscreen_ss_mesh);
+        gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+
+        print_text_fmt_int(110, 110, "GAME OVER", 0);
+
+        return;
+    }
 
     if (fnab_office_state == OFFICE_STATE_CAMERA) {
         u8 static_alpha = 10;
@@ -316,30 +562,91 @@ void fnab_render_2d(void) {
             }
         gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
 
+        if (snd_timer > 0) {
+            create_dl_translation_matrix(MENU_MTX_PUSH, -10+(snd_x*-10), snd_y*-10, 0);
+            gSPDisplayList(gDisplayListHead++, snd_snd_mesh);
+            gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+        }
+
+        if (radar_timer > 100) {
+            for (int i = 0; i < ENEMY_COUNT; i++) {
+                if (enemyList[i].active) {
+                    create_dl_translation_matrix(MENU_MTX_PUSH, -10+(enemyList[i].x*-10), enemyList[i].y*-10, 0);
+                    gSPDisplayList(gDisplayListHead++, radar_radar_mesh);
+                    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+                }
+            }
+        }
+
         gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
     }
 
-    print_text_fmt_int(10, 200, "12AM", 0);
+    print_text_fmt_int(10, 230, "12AM", 0);
     if (fnab_office_state == OFFICE_STATE_DESK) {
         switch(fnab_office_action) {
             case OACTION_CAMERA:
                 print_text_fmt_int(10, 10, "CAMERA", 0);
                 break;
             case OACTION_HIDE:
-                print_text_fmt_int(160, 10, "HIDE", 0);
+                print_text_fmt_int(150, 10, "HIDE", 0);
                 break;
             case OACTION_PANEL:
-                print_text_fmt_int(240, 10, "BREAKER", 0);
+                print_text_fmt_int(220, 10, "BREAKER", 0);
                 break;
         }
     }
     if (fnab_office_state == OFFICE_STATE_CAMERA) {
         print_text_fmt_int(10, 5, securityCameras[fnab_cam_index].name, 0);
+
+        gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+
+        //shadow
+        gDPSetEnvColor(gDisplayListHead++, 0, 0, 0, 255);
+        print_generic_string_ascii(230,30-1,"Z - Play Sound");
+        print_generic_string_ascii(230,50-1,"R - Radar");
+        print_generic_string_ascii(230,70-1,"L - Flush Vents");
+
+        if (get_map_data(-camera_mouse_x/10.f,-camera_mouse_y/10.f)) {
+            gDPSetEnvColor(gDisplayListHead++, 0, 255, 0, 255);
+        } else {
+            // cant play sound
+            gDPSetEnvColor(gDisplayListHead++, 255, 0, 0, 255);
+        }
+        print_generic_string_ascii(230,30,"Z - Play Sound");
+
+        if (radar_timer == 0) {
+            gDPSetEnvColor(gDisplayListHead++, 0, 255, 0, 255);
+        } else {
+            // cant play sound
+            gDPSetEnvColor(gDisplayListHead++, 255, 0, 0, 255);
+        }
+        print_generic_string_ascii(230,50,"R - Radar");
+
+        if (vent_flush_timer == 0) {
+            gDPSetEnvColor(gDisplayListHead++, 0, 255, 0, 255);
+        } else {
+            // cant play sound
+            gDPSetEnvColor(gDisplayListHead++, 255, 0, 0, 255);
+        }
+        print_generic_string_ascii(230,70,"L - Flush Vents");
+
+        gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
     }
 }
 
 void fnab_init(void) {
-    fnab_enemy_init(&testEnemy);
+    darknessObject = spawn_object(gMarioObject,MODEL_DARKNESS,bhvStaticObject);
+    darknessObject->oPosX = 0.0f;
+    darknessObject->oPosY = 0.0f;
+    darknessObject->oPosZ = 0.0f;
+
+    camera_mouse_x = -50.0f;
+    camera_mouse_y = -50.0f;
+
+    fnab_enemy_init(&enemyList[ENEMY_MOTOS],&motosInfo);
+    fnab_enemy_init(&enemyList[ENEMY_BULLY],&bullyInfo);
+
+
     fnab_cam_snap_or_lerp = 0;
 }
 
@@ -348,7 +655,9 @@ void fnab_init(void) {
 void fnab_loop(void) {
     if (officePovCamera == NULL) {return;}
 
-    fnab_enemy_step(&testEnemy);
+    for (int i = 0; i<ENEMY_COUNT; i++) {
+        fnab_enemy_step(&enemyList[i]);
+    }
 
     switch(fnab_office_state) {
         case OFFICE_STATE_DESK:
@@ -401,7 +710,7 @@ void fnab_loop(void) {
             if (fnab_office_statetimer > 10) {
                 fnab_cam_snap_or_lerp = 0;
                 fnab_office_statetimer = 0;
-                fnab_cam_index = 5;
+                fnab_cam_index = fnab_cam_last_index;
                 fnab_office_state = OFFICE_STATE_CAMERA;
             }
             break;
@@ -409,6 +718,10 @@ void fnab_loop(void) {
             camera_mouse_x += gPlayer1Controller->rawStickX/15.0f;
             camera_mouse_y += gPlayer1Controller->rawStickY/15.0f;
             camera_mouse_selecting = FALSE;
+
+            camera_mouse_x = CLAMP(camera_mouse_x,-190,0);
+            camera_mouse_y = CLAMP(camera_mouse_y,-150,0);
+
 
             for (int i = 0; i < SECURITY_CAMERA_CT; i++) {
                 if (securityCameras[i].name == NULL) {continue;}
@@ -421,9 +734,56 @@ void fnab_loop(void) {
                     camera_mouse_selecting = TRUE;
                     if (gPlayer1Controller->buttonPressed & A_BUTTON) {
                         fnab_cam_index = i;
+                        fnab_cam_last_index = i;
                         camera_interference_timer = 10;
                     }
                 }
+            }
+
+            // place sound
+            if ((gPlayer1Controller->buttonPressed & Z_TRIG)&&(snd_timer==0)) {
+                snd_x = -camera_mouse_x/10.0f;
+                snd_y = -camera_mouse_y/10.0f;
+                if (get_map_data(snd_x,snd_y)>0) {
+                    snd_timer = 30;
+                    for (int i = 0; i<ENEMY_COUNT; i++) {
+                        struct fnabEnemy * ce = &enemyList[i];
+
+                        if (!ce->active) {continue;}
+
+                        f32 xdif = snd_x - ce->x;
+                        f32 ydif = snd_y - ce->y;
+                        f32 dsqrd = xdif*xdif + ydif*ydif;
+                        if (dsqrd < 20.0f) {
+                            ce->tx = snd_x;
+                            ce->ty = snd_y;
+                            ce->state = FNABE_DISTRACTED;
+                        }
+                    }
+                } else {
+                    //err
+                }
+            }
+
+            //activate vent flush
+            if ((gPlayer1Controller->buttonPressed & L_TRIG)&&(vent_flush_timer==0)) {
+                vent_flush_timer = 200;
+
+                for (int i = 0; i<ENEMY_COUNT; i++) {
+                    struct fnabEnemy * ce = &enemyList[i];
+
+                    if (!ce->active) {continue;}
+                    if (get_map_data(ce->x,ce->y) == 2 || ce->state == FNABE_PRIMED_VENT) {
+                        ce->state = FNABE_DISTRACTED;
+                        ce->tx = ce->ventFlushX;
+                        ce->ty = ce->ventFlushY;
+                    }
+                }
+            }
+
+            //activate radar
+            if ((gPlayer1Controller->buttonPressed & R_TRIG)&&(radar_timer==0)) {
+                radar_timer = 200;
             }
 
             if (gPlayer1Controller->buttonPressed & B_BUTTON) {
@@ -431,6 +791,7 @@ void fnab_loop(void) {
                 fnab_cam_index = 1;
                 fnab_office_statetimer = 0;
             }
+
             break;
         case OFFICE_STATE_LEAVE_CAMERA:
             if (fnab_office_statetimer == 2) {
@@ -443,6 +804,16 @@ void fnab_loop(void) {
                 fnab_office_state = OFFICE_STATE_DESK;
             }
             break;
+        case OFFICE_STATE_JUMPSCARED:
+            if (0 == random_u16()%4) {
+                cur_obj_shake_screen(SHAKE_POS_LARGE);
+            }
+            if (fnab_office_statetimer > 1) {
+                fnab_cam_index = 0;
+                fnab_cam_snap_or_lerp = 1;
+                officePovCamera->oFaceAngleYaw = 0;
+            }
+            break;
     }
     fnab_office_statetimer++;
 
@@ -450,4 +821,22 @@ void fnab_loop(void) {
         camera_interference_timer--;
     }
 
+    darknessObject->header.gfx.node.flags |= GRAPH_RENDER_INVISIBLE;
+    if (light_interference_timer > 0) {
+        darknessObject->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
+        if (light_interference_timer < 5 && (random_u16()%2==0)) {
+            darknessObject->header.gfx.node.flags |= GRAPH_RENDER_INVISIBLE;
+        }
+        light_interference_timer --;
+    }
+
+    if (snd_timer > 0) {
+        snd_timer --;
+    }
+    if (radar_timer > 0) {
+        radar_timer--;
+    }
+    if (vent_flush_timer > 0) {
+        vent_flush_timer --;
+    }
 }
