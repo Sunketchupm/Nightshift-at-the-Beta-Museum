@@ -42,3 +42,6 @@
 #include "radar/model.inc.c"
 #include "moff/model.inc.c"
 #include "mon/model.inc.c"
+#include "warioapp/model.inc.c"
+#include "warioapp/anims/data.inc.c"
+#include "warioapp/anims/table.inc.c"

@@ -9,6 +9,7 @@ struct fnabEnemyProperties {
 };
 
 enum fnabEnemyState {
+    FNABE_IDLE,
     FNABE_WANDER,
     FNABE_ATTACK,
     FNABE_DISTRACTED,
@@ -39,10 +40,17 @@ enum animSlot {
     ANIMSLOT_JUMPSCARE
 };
 
+enum personality {
+    PERSONALITY_DEFAULT,
+    PERSONALITY_WARIO,
+};
+
 struct enemyInfo {
     u8 homeX;
     u8 homeY;
+    u8 homeDir;
     u8 canVent;
+    u8 maxSteps;
     BehaviorScript * modelBhv;
     u16 modelId;
     f32 frequency;
@@ -52,6 +60,8 @@ struct enemyInfo {
     u8 anim[4];
 
     f32 jumpscareScale;
+
+    u8 personality;
 };
 
 struct fnabEnemy {

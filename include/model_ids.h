@@ -579,6 +579,9 @@ enum {
     MODEL_BETABULLY,
     MODEL_MON,
     MODEL_MOFF,
+    MODEL_BETA_MARIO,
+    MODEL_BETA_LUIGI,
+    MODEL_WARIOAPP,
 };
 
 #endif // MODEL_IDS_H

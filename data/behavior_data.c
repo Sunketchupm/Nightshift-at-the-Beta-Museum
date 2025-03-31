@@ -6120,3 +6120,13 @@ const BehaviorScript bhvMotos[] = {
     BEGIN_LOOP(),
     END_LOOP(),
 };
+
+const BehaviorScript bhvWarioApp[] = {
+    BEGIN(OBJ_LIST_DEFAULT),
+    OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
+    LOAD_ANIMATIONS(oAnimations, warioapp_anims),
+    ANIMATE(0),
+    SCALE(/*Unused*/ 0, /*Field*/ 25),
+    BEGIN_LOOP(),
+    END_LOOP(),
+};

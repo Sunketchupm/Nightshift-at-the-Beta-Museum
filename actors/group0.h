@@ -353,4 +353,8 @@ extern const Gfx white_particle_small_unused_dl[];
 
 #include "mon/geo_header.h"
 
+#include "warioapp/geo_header.h"
+
+
+#include "warioapp/anim_header.h"
 #endif

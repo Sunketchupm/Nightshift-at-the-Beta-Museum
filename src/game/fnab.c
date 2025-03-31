@@ -160,11 +160,13 @@ u8 breakerDoFix = FALSE;
 struct enemyInfo motosInfo = {
     .homeX = 5,
     .homeY = 0,
+    .homeDir = 0,
     .canVent = FALSE,
     .modelBhv = bhvMotos,
     .modelId = MODEL_MOTOS,
     .frequency = 0.02f,
     .tableAttackChance = .1f,
+    .maxSteps = 2,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT},
 
@@ -174,16 +176,19 @@ struct enemyInfo motosInfo = {
     .anim[ANIMSLOT_JUMPSCARE] = 6,
 
     .jumpscareScale = .6f,
+    .personality = PERSONALITY_DEFAULT,
 };
 
 struct enemyInfo bullyInfo = {
     .homeX = 7,
     .homeY = 0,
+    .homeDir = 0,
     .canVent = TRUE,
     .modelBhv = bhvBetaBully,
     .modelId = MODEL_BETABULLY,
     .frequency = 0.03f,
     .tableAttackChance = .9f,
+    .maxSteps = 2,
 
     .choice = {FNABE_PRIMED_VENT,FNABE_PRIMED_VENT,FNABE_PRIMED_RIGHT},
 
@@ -193,6 +198,29 @@ struct enemyInfo bullyInfo = {
     .anim[ANIMSLOT_JUMPSCARE] = 3,
 
     .jumpscareScale = .55f,
+    .personality = PERSONALITY_DEFAULT,
+};
+
+struct enemyInfo warioInfo = {
+    .homeX = 18,
+    .homeY = 11,
+    .homeDir = MAPDIR_DOWN,
+    .canVent = FALSE,
+    .modelBhv = bhvWarioApp,
+    .modelId = MODEL_WARIOAPP,
+    .frequency = 0.04f,
+    .tableAttackChance = 1.0f,
+    .maxSteps = 3,
+
+    .choice = {FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT},
+
+    .anim[ANIMSLOT_NORMAL] = 0,
+    .anim[ANIMSLOT_WINDOW] = 0,
+    .anim[ANIMSLOT_VENT] = 0,
+    .anim[ANIMSLOT_JUMPSCARE] = 1,
+
+    .jumpscareScale = .15f,
+    .personality = PERSONALITY_WARIO,
 };
 
 struct fnabEnemy enemyList[ENEMY_COUNT];
@@ -280,22 +308,6 @@ void bhv_fnab_camera(void) {
     }
 }
 
-void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info) {
-    cfe->active = TRUE;
-    cfe->progress = 0.0f;
-    cfe->x = info->homeX;
-    cfe->y = info->homeY;
-    cfe->tx = info->homeX;
-    cfe->ty = info->homeY;
-    cfe->state = FNABE_WANDER;
-    cfe->modelObj = spawn_object(gMarioObject,info->modelId,info->modelBhv);
-    cfe->info = info;
-    cfe->animFrameHold = random_u16();
- 
-    cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f;
-    cfe->modelObj->oPosZ = (200.0f*cfe->y)+100.0f;
-}
-
 void fnab_enemy_set_target(struct fnabEnemy * cfe) {
     //set new target based on state
     switch(cfe->state) {
@@ -335,6 +347,7 @@ void fnab_enemy_set_target(struct fnabEnemy * cfe) {
 void fnab_enemy_step(struct fnabEnemy * cfe) {
     if (!cfe->active) {return;}
 
+    //JUMPSCARE BEHAVIOR
     if (cfe->state == FNABE_JUMPSCARE) {
         //play_sound(SOUND_OBJ2_SMALL_BULLY_ATTACKED, gGlobalSoundSource);
         cfe->modelObj->oPosX = officePovCamera->oPosX + sins(officePovCamera->oFaceAngleYaw) * coss(officePovCamera->oFaceAnglePitch) * 75.0f;
@@ -347,28 +360,49 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
         return;
     }
 
+    //WARIO PERSONALITY
+    if (cfe->info->personality == PERSONALITY_WARIO && cfe->state == FNABE_IDLE) {
+        if (fnab_cam_index == 9 && camera_interference_timer == 0 && cfe->modelObj->oOpacity > 30) {
+            cfe->modelObj->oOpacity -= 3;
+        }
+        if (gGlobalTimer % 3 == 0) {
+            cfe->modelObj->oOpacity ++;
+            if (cfe->modelObj->oOpacity == 255) {
+                cfe->state = FNABE_ATTACK;
+                fnab_enemy_set_target(&cfe);
+            }
+        }
+    }
+
+    //PER FRAME PROGRESS
     cfe->progress += cfe->info->frequency;
     if (cfe->state == FNABE_FLUSHED) {
         cfe->progress += cfe->info->frequency*2.0f;
     }
 
+    u8 modeldir = cfe->info->homeDir;
     if (cfe->state < FNABE_PRIMED) {
         // Wandering around map
         if (cfe->progress >= 1.0f) {
             cfe->progress -= 1.0f;
 
-            camera_interference_timer = 10;
-
             u8 tile_landed = 0;
-            u16 steps = 1+(random_u16()%3);
+            u16 steps = 1+(random_u16()%cfe->info->maxSteps);
             if (get_map_data(cfe->x,cfe->y) == 3) {
                 steps = 1;
                 light_interference_timer = 10;
+            }
+            if (cfe->state == FNABE_IDLE) {
+                steps = 0;
+            }
+            if (steps > 0) {
+                camera_interference_timer = 8;
             }
             for (int i = 0; i < steps; i++) {
                 cfe->animFrameHold = random_u16();
 
                 u8 dir = path_find(cfe->tx,cfe->ty,cfe->x,cfe->y,cfe->info->canVent);
+                modeldir = dir;
                 bcopy(&fnabMap,&pathfindingMap,MAP_SIZE*MAP_SIZE);
 
                 cfe->x -= dirOffset[dir][0];
@@ -415,21 +449,21 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                     fnab_enemy_set_target(cfe);
                 }
 
-                if (tile_landed == 4) {
+                if (tile_landed == 4 && cfe->x == cfe->tx && cfe->state == FNABE_ATTACK) {
                     cfe->state = cfe->attackLocation;
                     cfe->progress = 0.0f;
                 }
-
-                f32 zoff = 0.0f;
-                if (cfe->state == FNABE_PRIMED_LEFT || cfe->state == FNABE_PRIMED_RIGHT) {
-                    zoff = 70.0f;
-                }
-
-                cfe->modelObj->oFaceAngleYaw = (dir*0x4000) + 0x8000;
-                cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f;
-                cfe->modelObj->oPosZ = (-200.0f*cfe->y)-100.0f+zoff;
-                cfe->modelObj->oPosY = find_floor_height(cfe->modelObj->oPosX,500.0f,cfe->modelObj->oPosZ);
             }
+            //UPDATE MODEL
+            f32 zoff = 0.0f;
+            if (cfe->state == FNABE_PRIMED_LEFT || cfe->state == FNABE_PRIMED_RIGHT) {
+                zoff = 70.0f;
+            }
+
+            cfe->modelObj->oFaceAngleYaw = (modeldir*0x4000) + 0x8000;
+            cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f;
+            cfe->modelObj->oPosZ = (-200.0f*cfe->y)-100.0f+zoff;
+            cfe->modelObj->oPosY = find_floor_height(cfe->modelObj->oPosX,500.0f,cfe->modelObj->oPosZ);
             if (tile_landed >= 3) {
                 cfe->modelObj->oFaceAngleYaw = obj_angle_to_object(cfe->modelObj,officePovCamera); //stare at the player
                 light_interference_timer = 10;
@@ -508,7 +542,22 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
         }
     }
 
-    cfe->modelObj->header.gfx.animInfo.animFrame = cfe->animFrameHold%cfe->modelObj->header.gfx.animInfo.curAnim->loopEnd;
+    if (cfe->info->personality != PERSONALITY_WARIO) {
+        cfe->modelObj->header.gfx.animInfo.animFrame = cfe->animFrameHold%cfe->modelObj->header.gfx.animInfo.curAnim->loopEnd;
+    }
+}
+
+void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info) {
+    cfe->active = TRUE;
+    cfe->progress = 1.0f;
+    cfe->x = info->homeX;
+    cfe->y = info->homeY;
+    cfe->tx = info->homeX;
+    cfe->ty = info->homeY;
+    cfe->state = FNABE_IDLE;
+    cfe->modelObj = spawn_object(gMarioObject,info->modelId,info->modelBhv);
+    cfe->info = info;
+    cfe->animFrameHold = random_u16();
 }
 
 void print_breaker_status(u16 x, u16 y) {
@@ -679,6 +728,7 @@ void fnab_init(void) {
 
     fnab_enemy_init(&enemyList[ENEMY_MOTOS],&motosInfo);
     fnab_enemy_init(&enemyList[ENEMY_BULLY],&bullyInfo);
+    fnab_enemy_init(&enemyList[ENEMY_WARIO],&warioInfo);
 
     fnab_cam_snap_or_lerp = 0;
 

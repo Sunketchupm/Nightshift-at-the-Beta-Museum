@@ -21,3 +21,4 @@
 #include "darkness/geo.inc.c"
 #include "moff/geo.inc.c"
 #include "mon/geo.inc.c"
+#include "warioapp/geo.inc.c"
