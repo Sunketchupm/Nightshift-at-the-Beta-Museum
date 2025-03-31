@@ -403,7 +403,6 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
 
                 u8 dir = path_find(cfe->tx,cfe->ty,cfe->x,cfe->y,cfe->info->canVent);
                 modeldir = dir;
-                bcopy(&fnabMap,&pathfindingMap,MAP_SIZE*MAP_SIZE);
 
                 cfe->x -= dirOffset[dir][0];
                 cfe->y -= dirOffset[dir][1];
@@ -454,6 +453,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                     cfe->progress = 0.0f;
                 }
             }
+            bcopy(&fnabMap,&pathfindingMap,MAP_SIZE*MAP_SIZE);
             //UPDATE MODEL
             f32 zoff = 0.0f;
             if (cfe->state == FNABE_PRIMED_LEFT || cfe->state == FNABE_PRIMED_RIGHT) {
@@ -837,11 +837,11 @@ void fnab_loop(void) {
 
             // place sound
             if ((gPlayer1Controller->buttonPressed & Z_TRIG)&&(snd_timer==0)&&(breakerCharges[1]>0)) {
-                breakerCharges[1]--;
-
                 snd_x = -camera_mouse_x/10.0f;
                 snd_y = -camera_mouse_y/10.0f;
                 if (get_map_data(snd_x,snd_y)>0) {
+                    breakerCharges[1]--;
+
                     snd_timer = 30;
                     for (int i = 0; i<ENEMY_COUNT; i++) {
                         struct fnabEnemy * ce = &enemyList[i];
