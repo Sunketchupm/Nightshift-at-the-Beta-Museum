@@ -138,4 +138,8 @@ void fnab_render_2d(void);
 void bhv_fnab_camera(void);
 void bhv_fnab_door(void);
 
+s32 fnab_main_menu(void);
+void fnab_main_menu_render(void);
+void fnab_main_menu_init(void);
+
 #endif

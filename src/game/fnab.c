@@ -11,6 +11,8 @@
 #include "actors/group0.h"
 #include "ingame_menu.h"
 #include "engine/surface_collision.h"
+#include "level_update.h"
+#include "texscroll.h"
 
 #define _ 0, // Wall / Nothing
 #define F 1, // Floor  
@@ -1068,6 +1070,9 @@ void fnab_loop(void) {
             if (fnab_office_statetimer > 30) {
                 play_sound(SOUND_ENV_WATERFALL1, gGlobalSoundSource);
             }
+            if (fnab_office_statetimer == 120) {
+                fade_into_special_warp(WARP_SPECIAL_MARIO_HEAD_REGULAR, 0); // reset game
+            }
             break;
     }
     fnab_office_statetimer++;
@@ -1111,3 +1116,101 @@ void fnab_loop(void) {
     }
     fnab_clock++;
 }
+
+
+/* MAIN MENU*/
+
+u8 main_menu_state = 0;
+s8 main_menu_index = 0;
+
+void fnab_main_menu_init(void) {
+    main_menu_state = 0;
+    main_menu_index = 0;
+}
+
+s32 fnab_main_menu(void) {
+    switch(main_menu_state) {
+        case 0: // MAIN
+            handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 3);
+            if (gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON)) {
+                switch(main_menu_index) {
+                    case 0:
+                        main_menu_state = 2;
+                        break;
+                    case 3:
+                        main_menu_state = 1;
+                        break;
+                }
+            }
+            break;
+        case 1: // CREDITS
+            if (gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON|B_BUTTON)) {
+                main_menu_state = 0;
+            }
+            break;
+        case 2: // NIGHT SELECT
+            handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 4);
+
+            if (gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON)) {
+                return 1;
+            }
+            if (gPlayer1Controller->buttonPressed & (B_BUTTON)) {
+                main_menu_state = 0;
+                main_menu_index = 0;
+            }
+            break;
+    }
+
+    scroll_textures();
+    return 0;
+}
+
+void fnab_main_menu_render(void) {
+    create_dl_ortho_matrix();
+
+    //render camera static
+    gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 20);
+    create_dl_translation_matrix(MENU_MTX_PUSH, 160, 120, 0);
+    gSPDisplayList(gDisplayListHead++, staticscreen_ss_mesh);
+    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+
+    switch(main_menu_state) {
+        case 0:
+            print_text_fmt_int(10, 220, "NIGHTSHIFT AT THE", 0);
+            print_text_fmt_int(10, 200, "BETA MUSEUM", 0);
+
+            print_text_fmt_int(10, 100-(20*main_menu_index), "^", 0);
+            print_text_fmt_int(35, 100, "START", 0);
+            print_text_fmt_int(35, 100-20, "???", 0);
+            print_text_fmt_int(35, 100-40, "???", 0);
+            print_text_fmt_int(35, 100-60, "CREDITS", 0);
+            break;
+        case 1: // CREDITS
+            gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+
+            //shadow
+            gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+            print_generic_string_ascii(15,220,"Hack by: Rovertronic\n\
+\n\
+Music used: B3313 OST\n\
+\n\
+Voice 1: Kaze\n\
+Voice 2: Rovertronic\n\
+Voice 3: Cheezepin\n\
+\n\
+Mario & Luigi Models: frijolesdotz64\n\
+\n\
+Beta font recreation: Simpson55\n\
+\n\
+Motos model: Arthurtilly");
+            gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+            break;
+
+        case 2: // NIGHT SELECT
+            print_text_fmt_int(10, 150-(20*main_menu_index), "^", 0);
+            for (int i = 0; i<5; i++) {
+                print_text_fmt_int(35, 150-(20*i), "NIGHT %d", i+1);
+            }
+            break;
+    }
+};

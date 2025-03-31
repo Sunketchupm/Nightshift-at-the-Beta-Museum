@@ -145,7 +145,7 @@
  */
 
 #ifndef START_LEVEL
-    #define START_LEVEL LEVEL_CASTLE_GROUNDS
+    #define START_LEVEL LEVEL_FNAB
 #endif // !START_LEVEL
 
 

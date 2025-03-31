@@ -176,6 +176,7 @@ u16 level_control_timer(s32 timerOp) {
 }
 
 u32 pressed_pause(void) {
+    return FALSE;
     u32 dialogActive = get_dialog_id() >= 0;
     u32 intangible = (gMarioState->action & ACT_FLAG_INTANGIBLE) != 0;
 
@@ -761,6 +762,7 @@ s16 level_trigger_warp(struct MarioState *m, s32 warpOp) {
                     sDelayedWarpOp = WARP_OP_GAME_OVER;
                 }
 #endif
+                sDelayedWarpOp = WARP_OP_GAME_OVER;
                 sDelayedWarpTimer = 48;
                 sSourceWarpNodeId = WARP_NODE_DEATH;
                 play_transition(WARP_TRANSITION_FADE_INTO_BOWSER, sDelayedWarpTimer, 0x00, 0x00, 0x00);

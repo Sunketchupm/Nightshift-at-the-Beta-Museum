@@ -19,6 +19,7 @@
 #include "game/segment7.h"
 #include "game/spawn_object.h"
 #include "game/rumble_init.h"
+#include "game/fnab.h"
 #include "sm64.h"
 #include "text_strings.h"
 
@@ -2008,8 +2009,9 @@ void print_file_select_strings(void) {
  */
 Gfx *geo_file_select_strings_and_menu_cursor(s32 callContext, UNUSED struct GraphNode *node, UNUSED Mat4 mtx) {
     if (callContext == GEO_CONTEXT_RENDER) {
-        print_file_select_strings();
-        print_menu_cursor();
+        fnab_main_menu_render();
+        //print_file_select_strings();
+        //print_menu_cursor();
     }
     return NULL;
 }
@@ -2020,6 +2022,9 @@ Gfx *geo_file_select_strings_and_menu_cursor(s32 callContext, UNUSED struct Grap
  * either completing a course choosing "SAVE & QUIT" or having a game over.
  */
 s32 lvl_init_menu_values_and_cursor_pos(UNUSED s32 arg, UNUSED s32 unused) {
+    fnab_main_menu_init();
+    return;
+    
     sSelectedButtonID = MENU_BUTTON_NONE;
     sCurrentMenuLevel = MENU_LAYER_MAIN;
     sTextBaseAlpha = 0;
@@ -2054,7 +2059,7 @@ s32 lvl_init_menu_values_and_cursor_pos(UNUSED s32 arg, UNUSED s32 unused) {
  */
 s32 lvl_update_obj_and_load_file_selected(UNUSED s32 arg, UNUSED s32 unused) {
     area_update_objects();
-    return sSelectedFileNum;
+    return fnab_main_menu();
 }
 
 STATIC_ASSERT(SOUND_MODE_COUNT == MENU_BUTTON_SOUND_OPTION_MAX - MENU_BUTTON_SOUND_OPTION_MIN, "Mismatch between number of sound modes in audio code and file select!");
