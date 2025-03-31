@@ -208,6 +208,9 @@ const LevelScript level_fnab_entry[] = {
 	JUMP_LINK(script_func_global_1), 
 	JUMP_LINK(script_func_global_3), 
 	JUMP_LINK(script_func_global_18), 
+	JUMP_LINK(script_func_global_1), 
+	JUMP_LINK(script_func_global_3), 
+	JUMP_LINK(script_func_global_18), 
 	/* Fast64 begin persistent block [level commands] */
     JUMP_LINK(script_func_global_1),
     JUMP_LINK(script_func_global_3),
@@ -241,7 +244,7 @@ const LevelScript level_fnab_entry[] = {
 		OBJECT(MODEL_FANBLADE, 2199, 80, -2408, 0, -45, 0, 0x00000000, bhvFanBlade),
 		TERRAIN(fnab_area_1_collision),
 		MACRO_OBJECTS(fnab_area_1_macro_objs),
-		STOP_MUSIC(0),
+		SET_BACKGROUND_MUSIC(0x00, SEQ_AMB),
 		TERRAIN_TYPE(TERRAIN_STONE),
 		/* Fast64 begin persistent block [area commands] */
 		/* Fast64 end persistent block [area commands] */

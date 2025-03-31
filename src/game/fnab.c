@@ -13,6 +13,8 @@
 #include "engine/surface_collision.h"
 #include "level_update.h"
 #include "texscroll.h"
+#include "seq_ids.h"
+#include "audio/external.h"
 
 #define _ 0, // Wall / Nothing
 #define F 1, // Floor  
@@ -860,6 +862,8 @@ void fnab_loop(void) {
     for (int i = 0; i<ENEMY_COUNT; i++) {
         fnab_enemy_step(&enemyList[i]);
     }
+
+    //play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_TITLE), 0);
 
     monitorScreenObject->header.gfx.sharedChild = gLoadedGraphNodes[MODEL_MOFF];
     switch(fnab_office_state) {
