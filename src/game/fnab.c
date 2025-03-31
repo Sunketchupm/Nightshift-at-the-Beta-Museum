@@ -273,6 +273,7 @@ void bhv_fnab_door(void) {
             break;
         case 1:
             if (o->oTimer > 600) {
+                play_sound(SOUND_GENERAL_STAR_DOOR_OPEN, gGlobalSoundSource);
                 securityCameras[o->oBehParams2ndByte].doorStatus = 2;
             }
             break;
@@ -880,15 +881,13 @@ void fnab_loop(void) {
 
             if (gPlayer1Controller->buttonPressed & A_BUTTON) {
                 switch(fnab_office_action) {
-                    case OACTION_HIDE:
-
-                        break;
                     case OACTION_CAMERA:
                         fnab_cam_index = 1;
                         fnab_office_statetimer = 0;
                         fnab_office_state = OFFICE_STATE_LEAN_CAMERA;
                         break;
                     case OACTION_PANEL:
+                        play_sound(SOUND_GENERAL_OPEN_IRON_DOOR, gGlobalSoundSource);
                         fnab_cam_index = 4;
                         fnab_office_statetimer = 0;
                         fnab_office_state = OFFICE_STATE_BREAKER;
@@ -897,6 +896,7 @@ void fnab_loop(void) {
             }
             break;
         case OFFICE_STATE_HIDE:
+            play_sound(SOUND_ENV_BOAT_ROCKING1, gGlobalSoundSource);
             if (fnab_office_statetimer == 10) {
                 fnab_cam_index = 3;
             }
@@ -916,6 +916,7 @@ void fnab_loop(void) {
             }
             break;
         case OFFICE_STATE_LEAN_CAMERA:
+            play_sound(SOUND_ENV_WATERFALL1, gGlobalSoundSource);
             monitorScreenObject->header.gfx.sharedChild = gLoadedGraphNodes[MODEL_MON];
             if (fnab_office_statetimer > 10) {
                 fnab_cam_snap_or_lerp = 0;
@@ -947,11 +948,13 @@ void fnab_loop(void) {
                         if (securityCameras[i].type == SC_TYPE_CAMERA) {
                             fnab_cam_index = i;
                             fnab_cam_last_index = i;
-                            camera_interference_timer = 10;
+                            camera_interference_timer = 12;
+                            play_sound(SOUND_MENU_CLICK_CHANGE_VIEW, gGlobalSoundSource);
                         } else {
                             if (breakerCharges[0]>0&&securityCameras[i].doorStatus == 0) {
                                 breakerCharges[0]--;
                                 securityCameras[i].doorStatus = 1;
+                                play_sound(SOUND_GENERAL_STAR_DOOR_CLOSE, gGlobalSoundSource);
                             }
                         }
                     }
@@ -964,6 +967,8 @@ void fnab_loop(void) {
                 snd_y = -camera_mouse_y/10.0f;
                 if (get_map_data(snd_x,snd_y)>0) {
                     breakerCharges[1]--;
+
+                    play_sound(SOUND_GENERAL_COIN, gGlobalSoundSource);
 
                     snd_timer = 30;
                     for (int i = 0; i<ENEMY_COUNT; i++) {
@@ -990,6 +995,7 @@ void fnab_loop(void) {
             if ((gPlayer1Controller->buttonPressed & L_TRIG)&&(vent_flush_timer==0)&&(breakerCharges[2]>0)) {
                 breakerCharges[2]--;
                 vent_flush_timer = 200;
+                play_sound(SOUND_OBJ_FLAME_BLOWN, gGlobalSoundSource);
 
                 for (int i = 0; i<ENEMY_COUNT; i++) {
                     struct fnabEnemy * ce = &enemyList[i];
@@ -1006,6 +1012,7 @@ void fnab_loop(void) {
             //activate radar
             if ((gPlayer1Controller->buttonPressed & R_TRIG)&&(radar_timer==0)&&(breakerCharges[2]>0)) {
                 breakerCharges[2]--;
+                play_sound(SOUND_GENERAL_BOWSER_KEY_LAND, gGlobalSoundSource);
                 radar_timer = 200;
             }
 
@@ -1038,9 +1045,11 @@ void fnab_loop(void) {
                 if (!breakerDoFix&&(gPlayer1Controller->buttonPressed & A_BUTTON)) {
                     breakerDoFix = TRUE;
                     breakerFixing = 0.0f;
+                    play_sound(SOUND_GENERAL_BOWSER_KEY_LAND, gGlobalSoundSource);
                 }
 
                 if (gPlayer1Controller->buttonPressed & B_BUTTON) {
+                    play_sound(SOUND_GENERAL_CLOSE_IRON_DOOR, gGlobalSoundSource);
                     fnab_office_state = OFFICE_STATE_DESK;
                     fnab_cam_index = 0;
                     fnab_office_statetimer = 0;
@@ -1056,12 +1065,18 @@ void fnab_loop(void) {
                 fnab_cam_snap_or_lerp = 1;
                 officePovCamera->oFaceAngleYaw = 0;
             }
+            if (fnab_office_statetimer > 30) {
+                play_sound(SOUND_ENV_WATERFALL1, gGlobalSoundSource);
+            }
             break;
     }
     fnab_office_statetimer++;
 
     if (camera_interference_timer > 0) {
         camera_interference_timer--;
+        if (fnab_office_state == OFFICE_STATE_CAMERA) {
+            play_sound(SOUND_ENV_WATERFALL1, gGlobalSoundSource);
+        }
     }
 
     darknessObject->header.gfx.node.flags |= GRAPH_RENDER_INVISIBLE;
@@ -1071,6 +1086,10 @@ void fnab_loop(void) {
             darknessObject->header.gfx.node.flags |= GRAPH_RENDER_INVISIBLE;
         }
         light_interference_timer --;
+
+        if (fnab_office_state != OFFICE_STATE_CAMERA) {
+            play_sound(SOUND_AIR_AMP_BUZZ, gGlobalSoundSource);
+        }
     }
 
     if (snd_timer > 0) {
@@ -1083,8 +1102,9 @@ void fnab_loop(void) {
         vent_flush_timer --;
     }
     if (breakerDoFix == TRUE) {
-        breakerFixing += .02f;
+        breakerFixing += .01f;
         if (breakerFixing >= 7.f) {
+            play_sound(SOUND_GENERAL_BOWSER_KEY_LAND, gGlobalSoundSource);
             breakerDoFix = FALSE;
             breakerCharges[breakerIndex] = breakerChargesMax[breakerIndex];
         }
