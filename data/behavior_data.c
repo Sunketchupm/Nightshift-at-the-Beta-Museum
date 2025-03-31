@@ -6138,3 +6138,13 @@ const BehaviorScript bhvFnabDoor[] = {
         CALL_NATIVE(bhv_fnab_door),
     END_LOOP(),
 };
+
+const BehaviorScript bhvBetaLuigi[] = {
+    BEGIN(OBJ_LIST_DEFAULT),
+    OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
+    LOAD_ANIMATIONS(oAnimations, luigi_anims),
+    ANIMATE(0),
+    SCALE(/*Unused*/ 0, /*Field*/ 100),
+    BEGIN_LOOP(),
+    END_LOOP(),
+};

@@ -47,3 +47,6 @@
 #include "warioapp/anims/table.inc.c"
 #include "fnabdoor/model.inc.c"
 #include "dr/model.inc.c"
+#include "luigi/model.inc.c"
+#include "luigi/anims/data.inc.c"
+#include "luigi/anims/table.inc.c"

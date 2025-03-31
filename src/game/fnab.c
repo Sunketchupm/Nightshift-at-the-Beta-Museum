@@ -160,6 +160,7 @@ u8 breakerCharges[3] = {3,3,2};
 u8 breakerChargesMax[3] = {3,3,2};
 f32 breakerFixing = 0.0f;
 u8 breakerDoFix = FALSE;
+u8 cartridgeTilt = FALSE;
 
 u16 fnab_clock = 0;
 
@@ -216,7 +217,7 @@ struct enemyInfo warioInfo = {
     .canVent = FALSE,
     .modelBhv = bhvWarioApp,
     .modelId = MODEL_WARIOAPP,
-    .frequency = 0.04f,
+    .frequency = 0.1f,
     .tableAttackChance = 1.0f,
     .maxSteps = 4,
 
@@ -229,6 +230,28 @@ struct enemyInfo warioInfo = {
 
     .jumpscareScale = .15f,
     .personality = PERSONALITY_WARIO,
+};
+
+struct enemyInfo luigiInfo = {
+    .homeX = 11,
+    .homeY = 0,
+    .homeDir = 0,
+    .canVent = TRUE,
+    .modelBhv = bhvBetaLuigi,
+    .modelId = MODEL_BETA_LUIGI,
+    .frequency = 0.02f,
+    .tableAttackChance = .5f,
+    .maxSteps = 1,
+
+    .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT},
+
+    .anim[ANIMSLOT_NORMAL] = 0,
+    .anim[ANIMSLOT_WINDOW] = 0,
+    .anim[ANIMSLOT_VENT] = 1,
+    .anim[ANIMSLOT_JUMPSCARE] = 2,
+
+    .jumpscareScale = .6f,
+    .personality = PERSONALITY_LUIGI,
 };
 
 struct fnabEnemy enemyList[ENEMY_COUNT];
@@ -410,6 +433,10 @@ void fnab_enemy_set_target(struct fnabEnemy * cfe) {
                     break;
             }
             break;
+        case FNABE_CART_ATTACK:
+            cfe->tx = 1;
+            cfe->ty = 9;
+            break;
     }
 }
 
@@ -450,7 +477,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
     }
     
     //DEFAULT PERSONALITY
-    if (cfe->info->personality == PERSONALITY_DEFAULT) {
+    if (cfe->info->personality == PERSONALITY_DEFAULT || cfe->info->personality == PERSONALITY_LUIGI) {
         if (cfe->state == FNABE_IDLE) {
             cfe->state = FNABE_WANDER;
             fnab_enemy_set_target(&cfe);
@@ -517,14 +544,27 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                                 //1/3 chance to start attacking
                                 cfe->state = FNABE_ATTACK;
                             }
+                            if (cfe->info->personality == PERSONALITY_LUIGI && cartridgeTilt == FALSE) {
+                                cfe->state = FNABE_CART_ATTACK;
+                            }
                             break;
                         case FNABE_DISTRACTED:
                         case FNABE_FLUSHED:
+                            cfe->progress = 0.0f;
                             cfe->state = FNABE_WANDER;
                             break;
                         case FNABE_ATTACK:
                             //weird, but needed
                             cfe->state = FNABE_WANDER;
+                            break;
+                        case FNABE_CART_ATTACK:
+                            cfe->state = FNABE_WANDER;
+                            if (dir == MAPDIR_ARRIVED) {
+                                cartridgeTilt = TRUE;
+                                for (int i = 0; i<3; i++) {
+                                    breakerCharges[i] = 0;
+                                }
+                            }
                             break;
                     }
 
@@ -564,6 +604,9 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                 case 3:
                 case 4:
                     obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_WINDOW]);
+                    if (cfe->attackLocation == FNABE_PRIMED_VENT) {
+                        obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_VENT]);
+                    }
                     break;
             }
         }
@@ -623,6 +666,12 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
 
                 cfe->jumpscareYoffset = -75.f;
                 obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_JUMPSCARE]);
+
+                if (cfe->info->personality == PERSONALITY_WARIO) {
+                    play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_JUMPSCARE2), 0);
+                } else {
+                    play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_JUMPSCARE1), 0);
+                }
             }
         }
     }
@@ -688,7 +737,7 @@ void fnab_render_2d(void) {
 
     if (fnab_office_state == OFFICE_STATE_CAMERA) {
         u8 static_alpha = 10;
-        if (camera_interference_timer > 0) {
+        if (camera_interference_timer > 0 || cartridgeTilt == TRUE) {
             static_alpha = 255;
         }
 
@@ -843,9 +892,10 @@ void fnab_init(void) {
     camera_mouse_x = -50.0f;
     camera_mouse_y = -50.0f;
 
-    fnab_enemy_init(&enemyList[ENEMY_MOTOS],&motosInfo,8);
-    fnab_enemy_init(&enemyList[ENEMY_BULLY],&bullyInfo,8);
-    fnab_enemy_init(&enemyList[ENEMY_WARIO],&warioInfo,8);
+    fnab_enemy_init(&enemyList[ENEMY_MOTOS],&motosInfo,10);
+    fnab_enemy_init(&enemyList[ENEMY_BULLY],&bullyInfo,10);
+    fnab_enemy_init(&enemyList[ENEMY_WARIO],&warioInfo,10);
+    fnab_enemy_init(&enemyList[ENEMY_LUIGI],&luigiInfo,10);
 
     fnab_cam_snap_or_lerp = 0;
 
@@ -990,6 +1040,7 @@ void fnab_loop(void) {
                             ce->tx = snd_x;
                             ce->ty = snd_y;
                             ce->state = FNABE_DISTRACTED;
+                            ce->progress += 5.0f;
                         }
                     }
                 } else {
@@ -1128,7 +1179,7 @@ u8 main_menu_state = 0;
 s8 main_menu_index = 0;
 
 void fnab_main_menu_init(void) {
-    main_menu_state = 0;
+    main_menu_state = 3;
     main_menu_index = 0;
 }
 
@@ -1148,6 +1199,7 @@ s32 fnab_main_menu(void) {
             }
             break;
         case 1: // CREDITS
+        case 3: // EPILEPSY SCREEN
             if (gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON|B_BUTTON)) {
                 main_menu_state = 0;
             }
@@ -1191,8 +1243,6 @@ void fnab_main_menu_render(void) {
             break;
         case 1: // CREDITS
             gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
-
-            //shadow
             gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
             print_generic_string_ascii(15,220,"Hack by: Rovertronic\n\
 \n\
@@ -1215,6 +1265,19 @@ Motos model: Arthurtilly");
             for (int i = 0; i<5; i++) {
                 print_text_fmt_int(35, 150-(20*i), "NIGHT %d", i+1);
             }
+            break;
+
+        case 3: // EPILEPSY WARNING
+        gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+        gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+        print_generic_string_ascii(25,200,"EPILEPSY WARNING!\n\
+\n\
+This Super Mario 64 ROM hack\n\
+contains flashing lights, loud sounds,\n\
+and jumpscares.\n\
+\n\
+Press START to continue.");
+        gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
             break;
     }
 };

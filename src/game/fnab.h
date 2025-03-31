@@ -14,6 +14,7 @@ enum fnabEnemyState {
     FNABE_ATTACK,
     FNABE_DISTRACTED,
     FNABE_FLUSHED,
+    FNABE_CART_ATTACK,
     
     FNABE_PRIMED,
     FNABE_PRIMED_LEFT,
@@ -42,6 +43,7 @@ enum animSlot {
 enum personality {
     PERSONALITY_DEFAULT,
     PERSONALITY_WARIO,
+    PERSONALITY_LUIGI
 };
 
 struct enemyInfo {

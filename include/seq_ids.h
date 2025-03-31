@@ -48,6 +48,8 @@ enum SeqId {
     SEQ_TITLE,  // 0x23
     SEQ_AMB,  // 0x24
     SEQ_WIN,  // 0x25
+    SEQ_JUMPSCARE1,  // 0x26
+    SEQ_JUMPSCARE2,  // 0x27
     SEQ_COUNT,
 };
 
