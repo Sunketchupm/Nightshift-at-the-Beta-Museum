@@ -546,5 +546,6 @@ extern const BehaviorScript bhvFanBlade[];
 extern const BehaviorScript bhvBlargg[];
 extern const BehaviorScript bhvBetaBully[];
 extern const BehaviorScript bhvWarioApp[];
+extern const BehaviorScript bhvFnabDoor[];
 
 #endif // BEHAVIOR_DATA_H

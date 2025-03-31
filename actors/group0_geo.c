@@ -22,3 +22,4 @@
 #include "moff/geo.inc.c"
 #include "mon/geo.inc.c"
 #include "warioapp/geo.inc.c"
+#include "fnabdoor/geo.inc.c"

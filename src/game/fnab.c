@@ -30,7 +30,7 @@ u8 fnabMap[20][20] = {
 {F F F _ F F F _ _ _ _ _ W _ _ _ F _ F _},
 {F F F _ F F F _ _ _ _ _ W _ _ _ F _ F _},
 {F F F _ _ V _ _ _ W W W W _ _ _ F _ F _},
-{V _ _ _ _ V _ _ _ A _ _ _ A F F F _ F _},
+{V _ _ _ _ V _ _ _ A _ _ _ A W W W _ F _},
 {V V V V V V _ _ _ _ _ _ _ _ _ _ _ _ _ _},
 {_ _ _ _ _ V _ _ _ _ _ A _ _ _ _ _ _ _ _},
 {_ _ _ _ _ V V V V V V W _ _ _ _ _ _ _ _},
@@ -152,10 +152,14 @@ u8 radar_timer = 0;
 u8 vent_flush_timer = 0;
 
 s8 breakerIndex = 0;
-u8 breakerCharges[3] = {4,4,2};
-u8 breakerChargesMax[3] = {4,4,2};
+u8 breakerCharges[3] = {3,3,2};
+u8 breakerChargesMax[3] = {3,3,2};
 f32 breakerFixing = 0.0f;
 u8 breakerDoFix = FALSE;
+
+u16 fnab_clock = 0;
+
+u8 enemyDifficulty[ENEMY_COUNT] = {4,0,4,4,4};
 
 struct enemyInfo motosInfo = {
     .homeX = 5,
@@ -166,7 +170,7 @@ struct enemyInfo motosInfo = {
     .modelId = MODEL_MOTOS,
     .frequency = 0.02f,
     .tableAttackChance = .1f,
-    .maxSteps = 2,
+    .maxSteps = 3,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT},
 
@@ -188,7 +192,7 @@ struct enemyInfo bullyInfo = {
     .modelId = MODEL_BETABULLY,
     .frequency = 0.03f,
     .tableAttackChance = .9f,
-    .maxSteps = 2,
+    .maxSteps = 3,
 
     .choice = {FNABE_PRIMED_VENT,FNABE_PRIMED_VENT,FNABE_PRIMED_RIGHT},
 
@@ -210,7 +214,7 @@ struct enemyInfo warioInfo = {
     .modelId = MODEL_WARIOAPP,
     .frequency = 0.04f,
     .tableAttackChance = 1.0f,
-    .maxSteps = 3,
+    .maxSteps = 4,
 
     .choice = {FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT},
 
@@ -225,7 +229,7 @@ struct enemyInfo warioInfo = {
 
 struct fnabEnemy enemyList[ENEMY_COUNT];
 
-#define SECURITY_CAMERA_CT 20
+#define SECURITY_CAMERA_CT 25
 struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
     {.name = NULL},
     {.name = NULL},
@@ -239,22 +243,82 @@ struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
     {.name = "L IS REAL EXHIBIT"},
     {.name = "APPARITION HALL"},
     {.name = "RESTROOMS"},
-    {.name = "VENT"},
+    {.name = "SOUTH VENT"},
     {.name = "HALL R"},
     {.name = "SPACEWORLD CASTLE"},
     {.name = "CARTRIDGE ROOM"},
     {.name = "CLOSET"},
+
+    {.name = NULL},
+    {.name = NULL},
+    {.name = NULL},
+    {.name = NULL},
+
+    {.name = "NORTH VENT"},
 };
+
+void bhv_fnab_door(void) {
+    if (!securityCameras[o->oBehParams2ndByte].init) {
+        securityCameras[o->oBehParams2ndByte].init = TRUE;
+        securityCameras[o->oBehParams2ndByte].x = -o->oPosX/20.0f;
+        securityCameras[o->oBehParams2ndByte].y = o->oPosZ/20.0f;
+        securityCameras[o->oBehParams2ndByte].type = SC_TYPE_DOOR;
+        securityCameras[o->oBehParams2ndByte].doorStatus = 0;
+    }
+
+    //door routine
+    switch(securityCameras[o->oBehParams2ndByte].doorStatus) {
+        case 0:
+            o->oTimer = 0;
+            break;
+        case 1:
+            if (o->oTimer > 600) {
+                securityCameras[o->oBehParams2ndByte].doorStatus = 2;
+            }
+            break;
+        case 2:
+            if (o->oTimer > 1800) {
+                securityCameras[o->oBehParams2ndByte].doorStatus = 0;
+            }
+            break;
+    }
+
+    u8 mapx = (u8)(o->oPosX/200.0f);
+    u8 mapy = (u8)(o->oPosZ/-200.0f);
+
+    //door behavior
+    switch(securityCameras[o->oBehParams2ndByte].doorStatus) {
+        case 0:
+        case 2:
+            fnabMap[mapy][mapx] = 1;//open
+
+            o->oPosY += 12.0f;
+            if (o->oPosY > 190.0f) {
+                o->oPosY = 190.0f;
+            }
+            break;
+        case 1:
+            fnabMap[mapy][mapx] = 0;//close
+    
+            o->oPosY -= 15.0f;
+            if (o->oPosY < 0.0f) {
+                o->oPosY = 0.0f;
+            }
+            break;
+    }
+    bcopy(&fnabMap,&pathfindingMap,MAP_SIZE*MAP_SIZE);
+}
 
 void bhv_fnab_camera(void) {
     if (o->oBehParams2ndByte == 0) {
         officePovCamera = o;
     }
 
-    if (!securityCameras[o->oBehParams2ndByte].init) {
+    if (!securityCameras[o->oBehParams2ndByte].init && securityCameras[o->oBehParams2ndByte].name) {
         securityCameras[o->oBehParams2ndByte].init = TRUE;
         securityCameras[o->oBehParams2ndByte].x = -o->oPosX/20.0f;
         securityCameras[o->oBehParams2ndByte].y = o->oPosZ/20.0f;
+        securityCameras[o->oBehParams2ndByte].type = SC_TYPE_CAMERA;
     }
     securityCameras[o->oBehParams2ndByte].angle = o->oFaceAngleYaw;
 
@@ -316,8 +380,8 @@ void fnab_enemy_set_target(struct fnabEnemy * cfe) {
             u8 random_y;
             u8 emergency_break = 0;
             do {
-                random_x = cfe->x + 5 - random_u16()%10;
-                random_y = cfe->y + 5 -random_u16()%10;
+                random_x = cfe->x + 3 - random_u16()%6;
+                random_y = cfe->y + 3 -random_u16()%6;
                 emergency_break++;
             } while (get_map_data(random_x,random_y)==0 && emergency_break < 10);
             cfe->tx = random_x;
@@ -361,23 +425,37 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
     }
 
     //WARIO PERSONALITY
-    if (cfe->info->personality == PERSONALITY_WARIO && cfe->state == FNABE_IDLE) {
-        if (fnab_cam_index == 9 && camera_interference_timer == 0 && cfe->modelObj->oOpacity > 30) {
-            cfe->modelObj->oOpacity -= 3;
-        }
-        if (gGlobalTimer % 3 == 0) {
-            cfe->modelObj->oOpacity ++;
-            if (cfe->modelObj->oOpacity == 255) {
-                cfe->state = FNABE_ATTACK;
-                fnab_enemy_set_target(&cfe);
+    if (cfe->info->personality == PERSONALITY_WARIO) {
+        if (cfe->state == FNABE_IDLE) {
+            if (fnab_cam_index == 9 && camera_interference_timer == 0 && cfe->modelObj->oOpacity > 30) {
+                cfe->modelObj->oOpacity -= 3;
             }
+            if ((gGlobalTimer % 30 == 0) && cfe->modelObj->oOpacity > 200) {
+                play_sound(SOUND_GENERAL_BOWSER_KEY_LAND, gGlobalSoundSource);
+            }
+            if (gGlobalTimer % 4 == 0) {
+                cfe->modelObj->oOpacity ++;
+                if (cfe->modelObj->oOpacity >= 255) {
+                    cfe->modelObj->oOpacity = 255;
+                    cfe->state = FNABE_ATTACK;
+                    fnab_enemy_set_target(&cfe);
+                }
+            }
+        }
+    }
+    
+    //DEFAULT PERSONALITY
+    if (cfe->info->personality == PERSONALITY_DEFAULT) {
+        if (cfe->state == FNABE_IDLE) {
+            cfe->state = FNABE_WANDER;
+            fnab_enemy_set_target(&cfe);
         }
     }
 
     //PER FRAME PROGRESS
     cfe->progress += cfe->info->frequency;
     if (cfe->state == FNABE_FLUSHED) {
-        cfe->progress += cfe->info->frequency*2.0f;
+        cfe->progress += cfe->info->frequency*5.0f;
     }
 
     u8 modeldir = cfe->info->homeDir;
@@ -388,15 +466,15 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
 
             u8 tile_landed = 0;
             u16 steps = 1+(random_u16()%cfe->info->maxSteps);
-            if (get_map_data(cfe->x,cfe->y) == 3) {
-                steps = 1;
-                light_interference_timer = 10;
-            }
-            if (cfe->state == FNABE_IDLE) {
+            if (cfe->state == FNABE_IDLE || (random_u16()%20)+1>=cfe->difficulty) {
                 steps = 0;
             }
             if (steps > 0) {
                 camera_interference_timer = 8;
+                if (get_map_data(cfe->x,cfe->y) == 3) {
+                    steps = 1;
+                    light_interference_timer = 10;
+                }
             }
             for (int i = 0; i < steps; i++) {
                 cfe->animFrameHold = random_u16();
@@ -430,8 +508,8 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                 if (dir >= MAPDIR_NO_PATH) {
                     switch(cfe->state) {
                         case FNABE_WANDER:
-                            if (random_u16()%2==0) {
-                                //1/2 chance to start attacking
+                            if (random_u16()%3==0) {
+                                //1/3 chance to start attacking
                                 cfe->state = FNABE_ATTACK;
                             }
                             break;
@@ -460,7 +538,9 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                 zoff = 70.0f;
             }
 
-            cfe->modelObj->oFaceAngleYaw = (modeldir*0x4000) + 0x8000;
+            if (steps > 0) {
+                cfe->modelObj->oFaceAngleYaw = (modeldir*0x4000) + 0x8000;
+            }
             cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f;
             cfe->modelObj->oPosZ = (-200.0f*cfe->y)-100.0f+zoff;
             cfe->modelObj->oPosY = find_floor_height(cfe->modelObj->oPosX,500.0f,cfe->modelObj->oPosZ);
@@ -547,7 +627,10 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
     }
 }
 
-void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info) {
+void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficulty) {
+    if (difficulty == 0) {
+        return;
+    }
     cfe->active = TRUE;
     cfe->progress = 1.0f;
     cfe->x = info->homeX;
@@ -555,6 +638,7 @@ void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info) {
     cfe->tx = info->homeX;
     cfe->ty = info->homeY;
     cfe->state = FNABE_IDLE;
+    cfe->difficulty = difficulty;
     cfe->modelObj = spawn_object(gMarioObject,info->modelId,info->modelBhv);
     cfe->info = info;
     cfe->animFrameHold = random_u16();
@@ -571,6 +655,16 @@ void print_breaker_status(u16 x, u16 y) {
         }
     }
 }
+
+char * clockstrings[] = {
+    "12AM",
+    "1 AM",
+    "2 AM",
+    "3 AM",
+    "4 AM",
+    "5 AM",
+    "6 AM"
+};
 
 void fnab_render_2d(void) {
 
@@ -605,16 +699,33 @@ void fnab_render_2d(void) {
 
         //render camera buttons
         for (int i = 0; i < SECURITY_CAMERA_CT; i++) {
-            if (securityCameras[i].name == NULL) {continue;}
+            if (securityCameras[i].init == FALSE) {continue;}
 
-            gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
-            if (i == fnab_cam_index) {gDPSetEnvColor(gDisplayListHead++, 0, 255, 0, 255);}
+            if (securityCameras[i].type == SC_TYPE_CAMERA) {
+                gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+                if (i == fnab_cam_index) {gDPSetEnvColor(gDisplayListHead++, 0, 255, 0, 255);}
 
-            create_dl_translation_matrix(MENU_MTX_PUSH, securityCameras[i].x, securityCameras[i].y, 0);
-                create_dl_rotation_matrix(MENU_MTX_PUSH, (securityCameras[i].angle/65535.f)*360.f+180.0f , 0, 0, 1.0f);
-                    gSPDisplayList(gDisplayListHead++, cb_cb_mesh);
+                create_dl_translation_matrix(MENU_MTX_PUSH, securityCameras[i].x, securityCameras[i].y, 0);
+                    create_dl_rotation_matrix(MENU_MTX_PUSH, (securityCameras[i].angle/65535.f)*360.f+180.0f , 0, 0, 1.0f);
+                        gSPDisplayList(gDisplayListHead++, cb_cb_mesh);
+                    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
                 gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
-            gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+            } else {
+                switch(securityCameras[i].doorStatus) {
+                    case 0:
+                        gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+                        break;
+                    case 1:
+                        gDPSetEnvColor(gDisplayListHead++, 0, 255, 0, 255)
+                        break;
+                    case 2:
+                        gDPSetEnvColor(gDisplayListHead++, 255, 0, 0, 255)
+                        break;
+                }
+                create_dl_translation_matrix(MENU_MTX_PUSH, securityCameras[i].x, securityCameras[i].y, 0);
+                    gSPDisplayList(gDisplayListHead++, dr_dr_mesh);
+                gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+            }
         }
 
         create_dl_translation_matrix(MENU_MTX_PUSH, camera_mouse_x, camera_mouse_y, 0);
@@ -644,14 +755,15 @@ void fnab_render_2d(void) {
         gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
     }
 
-    print_text_fmt_int(10, 230, "12AM", 0);
+    u8 clocktime = fnab_clock/1800;
+    print_text_fmt_int(10, 230, clockstrings[clocktime], 0);
     if (fnab_office_state == OFFICE_STATE_DESK) {
         switch(fnab_office_action) {
             case OACTION_CAMERA:
                 print_text_fmt_int(10, 10, "CAMERA", 0);
                 break;
             case OACTION_HIDE:
-                print_text_fmt_int(150, 10, "HIDE", 0);
+                //print_text_fmt_int(150, 10, "HIDE", 0);
                 break;
             case OACTION_PANEL:
                 print_text_fmt_int(220, 10, "BREAKER", 0);
@@ -726,9 +838,9 @@ void fnab_init(void) {
     camera_mouse_x = -50.0f;
     camera_mouse_y = -50.0f;
 
-    fnab_enemy_init(&enemyList[ENEMY_MOTOS],&motosInfo);
-    fnab_enemy_init(&enemyList[ENEMY_BULLY],&bullyInfo);
-    fnab_enemy_init(&enemyList[ENEMY_WARIO],&warioInfo);
+    fnab_enemy_init(&enemyList[ENEMY_MOTOS],&motosInfo,8);
+    fnab_enemy_init(&enemyList[ENEMY_BULLY],&bullyInfo,8);
+    fnab_enemy_init(&enemyList[ENEMY_WARIO],&warioInfo,8);
 
     fnab_cam_snap_or_lerp = 0;
 
@@ -760,12 +872,16 @@ void fnab_loop(void) {
                 fnab_office_action = OACTION_CAMERA;
             }
 
+            if (gPlayer1Controller->buttonDown & Z_TRIG) {
+                fnab_cam_index = 2;
+                fnab_office_statetimer = 0;
+                fnab_office_state = OFFICE_STATE_HIDE;
+            }
+
             if (gPlayer1Controller->buttonPressed & A_BUTTON) {
                 switch(fnab_office_action) {
                     case OACTION_HIDE:
-                        fnab_cam_index = 2;
-                        fnab_office_statetimer = 0;
-                        fnab_office_state = OFFICE_STATE_HIDE;
+
                         break;
                     case OACTION_CAMERA:
                         fnab_cam_index = 1;
@@ -785,7 +901,7 @@ void fnab_loop(void) {
                 fnab_cam_index = 3;
             }
             if (fnab_office_statetimer > 20) {
-                if (gPlayer1Controller->buttonPressed & A_BUTTON) {
+                if (!(gPlayer1Controller->buttonDown & Z_TRIG)) {
                     fnab_office_state = OFFICE_STATE_UNHIDE;
                     fnab_cam_index = 2;
                     fnab_office_statetimer = 0;
@@ -819,7 +935,7 @@ void fnab_loop(void) {
 
 
             for (int i = 0; i < SECURITY_CAMERA_CT; i++) {
-                if (securityCameras[i].name == NULL) {continue;}
+                if (securityCameras[i].init == FALSE) {continue;}
 
                 f32 xdif = (securityCameras[i].x - camera_mouse_x);
                 f32 ydif = (securityCameras[i].y - camera_mouse_y);
@@ -828,9 +944,16 @@ void fnab_loop(void) {
                 if (distsqr < 64.0f) {
                     camera_mouse_selecting = TRUE;
                     if (gPlayer1Controller->buttonPressed & A_BUTTON) {
-                        fnab_cam_index = i;
-                        fnab_cam_last_index = i;
-                        camera_interference_timer = 10;
+                        if (securityCameras[i].type == SC_TYPE_CAMERA) {
+                            fnab_cam_index = i;
+                            fnab_cam_last_index = i;
+                            camera_interference_timer = 10;
+                        } else {
+                            if (breakerCharges[0]>0&&securityCameras[i].doorStatus == 0) {
+                                breakerCharges[0]--;
+                                securityCameras[i].doorStatus = 1;
+                            }
+                        }
                     }
                 }
             }
@@ -847,6 +970,7 @@ void fnab_loop(void) {
                         struct fnabEnemy * ce = &enemyList[i];
 
                         if (!ce->active) {continue;}
+                        if (ce->state == FNABE_IDLE) {continue;}
 
                         f32 xdif = snd_x - ce->x;
                         f32 ydif = snd_y - ce->y;
@@ -872,7 +996,7 @@ void fnab_loop(void) {
 
                     if (!ce->active) {continue;}
                     if (get_map_data(ce->x,ce->y) == 2 || ce->state == FNABE_PRIMED_VENT) {
-                        ce->state = FNABE_DISTRACTED;
+                        ce->state = FNABE_FLUSHED;
                         ce->tx = ce->ventFlushX;
                         ce->ty = ce->ventFlushY;
                     }
@@ -959,10 +1083,11 @@ void fnab_loop(void) {
         vent_flush_timer --;
     }
     if (breakerDoFix == TRUE) {
-        breakerFixing += .03f;
+        breakerFixing += .02f;
         if (breakerFixing >= 7.f) {
             breakerDoFix = FALSE;
             breakerCharges[breakerIndex] = breakerChargesMax[breakerIndex];
         }
     }
+    fnab_clock++;
 }

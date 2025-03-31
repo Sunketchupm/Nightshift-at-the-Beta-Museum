@@ -1,0 +1,14 @@
+extern const GeoLayout fnabdoor_geo[];
+extern u8 fnabdoor_SM64_cloud_wallD_txt_ci8[];
+extern u8 fnabdoor_SM64_cloud_wallD_txt_pal_rgba16[];
+extern u8 fnabdoor_FactoryMover_ci8[];
+extern u8 fnabdoor_FactoryMover_pal_rgba16[];
+extern Vtx fnabdoor_fnabdoor_mesh_layer_1_vtx_0[8];
+extern Gfx fnabdoor_fnabdoor_mesh_layer_1_tri_0[];
+extern Vtx fnabdoor_fnabdoor_mesh_layer_1_vtx_1[48];
+extern Gfx fnabdoor_fnabdoor_mesh_layer_1_tri_1[];
+extern Gfx mat_fnabdoor_door_001[];
+extern Gfx mat_revert_fnabdoor_door_001[];
+extern Gfx mat_fnabdoor_dooredge[];
+extern Gfx mat_revert_fnabdoor_dooredge[];
+extern Gfx fnabdoor_fnabdoor_mesh_layer_1[];

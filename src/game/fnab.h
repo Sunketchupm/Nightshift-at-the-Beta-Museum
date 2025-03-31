@@ -26,10 +26,9 @@ enum fnabEnemyState {
 enum fnabEnemyId {
     ENEMY_MOTOS,
     ENEMY_BULLY,
-    ENEMY_DANIEL,
-    ENEMY_MARIO,
-    ENEMY_LUIGI,
     ENEMY_WARIO,
+    ENEMY_LUIGI,
+    ENEMY_STANLEY,
     ENEMY_COUNT
 };
 
@@ -74,6 +73,7 @@ struct fnabEnemy {
     s8 ty;
     u8 state;
     u8 attackLocation;
+    u8 difficulty;//outta 20
     f32 progress;
     u16 animFrameHold;
     f32 jumpscareYoffset;
@@ -110,8 +110,16 @@ enum officeState {
     OFFICE_STATE_JUMPSCARED
 };
 
+enum sct {
+    SC_TYPE_UNINIT,
+    SC_TYPE_CAMERA,
+    SC_TYPE_DOOR,
+};
+
 struct securityCameraInfo {
     u8 init;
+    u8 type;
+    u8 doorStatus;
     f32 x;
     f32 y;
     s16 angle;
@@ -128,5 +136,6 @@ void fnab_loop(void);
 void fnab_init(void);
 void fnab_render_2d(void);
 void bhv_fnab_camera(void);
+void bhv_fnab_door(void);
 
 #endif

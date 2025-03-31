@@ -582,6 +582,7 @@ enum {
     MODEL_BETA_MARIO,
     MODEL_BETA_LUIGI,
     MODEL_WARIOAPP,
+    MODEL_FNABDOOR,
 };
 
 #endif // MODEL_IDS_H

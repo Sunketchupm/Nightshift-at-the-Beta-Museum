@@ -117,6 +117,7 @@ const LevelScript level_main_scripts_entry[] = {
     LOAD_MODEL_FROM_GEO(MODEL_MON,mon_geo),
     LOAD_MODEL_FROM_GEO(MODEL_MOFF,moff_geo),
     LOAD_MODEL_FROM_GEO(MODEL_WARIOAPP,warioapp_geo),
+    LOAD_MODEL_FROM_GEO(MODEL_FNABDOOR,fnabdoor_geo),
 #ifdef IA8_30FPS_COINS
     LOAD_MODEL_FROM_GEO(MODEL_SILVER_COIN,             silver_coin_geo),
     LOAD_MODEL_FROM_GEO(MODEL_SILVER_COIN_NO_SHADOW,   silver_coin_no_shadow_geo),

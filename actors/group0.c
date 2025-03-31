@@ -45,3 +45,5 @@
 #include "warioapp/model.inc.c"
 #include "warioapp/anims/data.inc.c"
 #include "warioapp/anims/table.inc.c"
+#include "fnabdoor/model.inc.c"
+#include "dr/model.inc.c"
