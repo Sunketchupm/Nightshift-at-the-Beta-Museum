@@ -16,6 +16,7 @@
 #include "levels/scripts.h"
 
 #include "actors/common1.h"
+#include "actors/group0.h"
 
 #include "make_const_nonconst.h"
 #include "levels/menu/header.h"
@@ -39,9 +40,10 @@ const LevelScript level_main_menu_entry_file_select[] = {
     LOAD_MODEL_FROM_GEO(MODEL_MAIN_MENU_MARIO_NEW_BUTTON_FADE,  geo_menu_mario_new_button_fade),
     LOAD_MODEL_FROM_GEO(MODEL_MAIN_MENU_PURPLE_SOUND_BUTTON,    geo_menu_sound_button),
     LOAD_MODEL_FROM_GEO(MODEL_MAIN_MENU_GENERIC_BUTTON,         geo_menu_generic_button),
+    LOAD_MODEL_FROM_GEO(MODEL_STANLEY,stanley_geo),
 
     AREA(/*index*/ 1, geo_menu_file_select_strings_and_menu_cursor),
-        //OBJECT(/*model*/ MODEL_NONE,                         /*pos*/ 0, 0, -19000, /*angle*/ 0, 0, 0, /*behParam*/ BP(0x04, 0x00, 0x00, 0x00), /*beh*/ bhvMenuButtonManager),
+        OBJECT(/*model*/ MODEL_STANLEY,                         /*pos*/60, -200, 700, /*angle*/ 0, 0, 0, /*behParam*/ BP(0x00, 0x00, 0x00, 0x00), /*beh*/ bhvStanleyTitle),
         //OBJECT(/*model*/ MODEL_MAIN_MENU_YELLOW_FILE_BUTTON, /*pos*/ 0, 0, -19000, /*angle*/ 0, 0, 0, /*behParam*/ BP(0x04, 0x00, 0x00, 0x00), /*beh*/ bhvYellowBackgroundInMenu),
         TERRAIN(/*terrainData*/ main_menu_seg7_collision),
     END_AREA(),

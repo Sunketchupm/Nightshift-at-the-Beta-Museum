@@ -6148,3 +6148,24 @@ const BehaviorScript bhvBetaLuigi[] = {
     BEGIN_LOOP(),
     END_LOOP(),
 };
+
+const BehaviorScript bhvStanley[] = {
+    BEGIN(OBJ_LIST_DEFAULT),
+    OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
+    LOAD_ANIMATIONS(oAnimations, stanley_anims),
+    ANIMATE(0),
+    SCALE(/*Unused*/ 0, /*Field*/ 70),
+    BEGIN_LOOP(),
+    END_LOOP(),
+};
+
+const BehaviorScript bhvStanleyTitle[] = {
+    BEGIN(OBJ_LIST_DEFAULT),
+    OR_INT(oFlags, (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)),
+    LOAD_ANIMATIONS(oAnimations, stanley_anims),
+    ANIMATE(0),
+    SCALE(/*Unused*/ 0, /*Field*/ 100),
+    BEGIN_LOOP(),
+        CALL_NATIVE(bhv_stanley_title),
+    END_LOOP(),
+};

@@ -24,3 +24,4 @@
 #include "warioapp/geo.inc.c"
 #include "fnabdoor/geo.inc.c"
 #include "luigi/geo.inc.c"
+#include "stanley/geo.inc.c"

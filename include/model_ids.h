@@ -583,6 +583,7 @@ enum {
     MODEL_BETA_LUIGI,
     MODEL_WARIOAPP,
     MODEL_FNABDOOR,
+    MODEL_STANLEY,
 };
 
 #endif // MODEL_IDS_H

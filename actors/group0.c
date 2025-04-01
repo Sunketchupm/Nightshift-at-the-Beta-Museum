@@ -50,3 +50,6 @@
 #include "luigi/model.inc.c"
 #include "luigi/anims/data.inc.c"
 #include "luigi/anims/table.inc.c"
+#include "stanley/model.inc.c"
+#include "stanley/anims/data.inc.c"
+#include "stanley/anims/table.inc.c"

@@ -254,6 +254,28 @@ struct enemyInfo luigiInfo = {
     .personality = PERSONALITY_LUIGI,
 };
 
+struct enemyInfo stanleyInfo = {
+    .homeX = 3,
+    .homeY = 5,
+    .homeDir = 0,
+    .canVent = TRUE,
+    .modelBhv = bhvStanley,
+    .modelId = MODEL_STANLEY,
+    .frequency = 0.1f,
+    .tableAttackChance = .75f,
+    .maxSteps = 1,
+
+    .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT},
+
+    .anim[ANIMSLOT_NORMAL] = 0,
+    .anim[ANIMSLOT_WINDOW] = 0,
+    .anim[ANIMSLOT_VENT] = 0,
+    .anim[ANIMSLOT_JUMPSCARE] = 1,
+
+    .jumpscareScale = .3f,
+    .personality = PERSONALITY_STANLEY,
+};
+
 u8 nightEnemyDifficulty[5][ENEMY_COUNT] = {
     {5,4,0,0,0}, //NIGHT 1
     {6,6,10,0,0}, //NIGHT 2
@@ -299,6 +321,10 @@ void bhv_fnab_door(void) {
         securityCameras[o->oBehParams2ndByte].y = o->oPosZ/20.0f;
         securityCameras[o->oBehParams2ndByte].type = SC_TYPE_DOOR;
         securityCameras[o->oBehParams2ndByte].doorStatus = 0;
+    } else {
+        if (fnab_clock == 1) {
+            securityCameras[o->oBehParams2ndByte].doorStatus = 0;
+        }
     }
 
     //door routine
@@ -408,6 +434,12 @@ void bhv_fnab_camera(void) {
     }
 }
 
+void bhv_stanley_title(void) {
+    if (random_u16()%20>2 || (o->oTimer%90>60)) {
+        o->header.gfx.animInfo.animFrame=6;
+    }
+}
+
 void fnab_enemy_set_target(struct fnabEnemy * cfe) {
     //set new target based on state
     switch(cfe->state) {
@@ -486,7 +518,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
     }
     
     //DEFAULT PERSONALITY
-    if (cfe->info->personality == PERSONALITY_DEFAULT || cfe->info->personality == PERSONALITY_LUIGI) {
+    if (cfe->info->personality != PERSONALITY_WARIO) {
         if (cfe->state == FNABE_IDLE) {
             if (fnab_night_id == 0 && fnab_clock < 1800*2) {
                 //do nothing
@@ -655,15 +687,26 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                     }
                 break;
             }
+
             //camera = unconditional jumpscare
             if (fnab_office_state == OFFICE_STATE_CAMERA) {
                 canjumpscare = TRUE;
+            }
+
+            if (cfe->info->personality == PERSONALITY_STANLEY) {
+                canjumpscare = TRUE;
+                //stanley can bypass being stared at
             }
 
             //if player is under desk
             if (fnab_office_state == OFFICE_STATE_HIDE || fnab_office_state == OFFICE_STATE_UNHIDE) {
                 if (cfe->attackLocation == FNABE_PRIMED_VENT) {
                     canjumpscare = FALSE; //cant jumpscare if being stared at
+
+                    if (cfe->info->personality == PERSONALITY_STANLEY) {
+                        canjumpscare = TRUE;
+                        //stanley can bypass being stared at
+                    }
                 } else {
                     f32 saving_roll = random_float();
                     if (saving_roll > cfe->info->tableAttackChance) {
@@ -967,6 +1010,7 @@ void fnab_init(void) {
     fnab_enemy_init(&enemyList[ENEMY_BULLY],&bullyInfo, nightEnemyDifficulty[fnab_night_id][ENEMY_BULLY]);
     fnab_enemy_init(&enemyList[ENEMY_WARIO],&warioInfo, nightEnemyDifficulty[fnab_night_id][ENEMY_WARIO]);
     fnab_enemy_init(&enemyList[ENEMY_LUIGI],&luigiInfo, nightEnemyDifficulty[fnab_night_id][ENEMY_LUIGI]);
+    fnab_enemy_init(&enemyList[ENEMY_STANLEY],&stanleyInfo, nightEnemyDifficulty[fnab_night_id][ENEMY_STANLEY]);
 }
 
 #define OACTHRESH 0x600

@@ -43,7 +43,8 @@ enum animSlot {
 enum personality {
     PERSONALITY_DEFAULT,
     PERSONALITY_WARIO,
-    PERSONALITY_LUIGI
+    PERSONALITY_LUIGI,
+    PERSONALITY_STANLEY
 };
 
 struct enemyInfo {
@@ -140,6 +141,7 @@ void fnab_init(void);
 void fnab_render_2d(void);
 void bhv_fnab_camera(void);
 void bhv_fnab_door(void);
+void bhv_stanley_title(void);
 
 s32 fnab_main_menu(void);
 void fnab_main_menu_render(void);
