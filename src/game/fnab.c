@@ -503,7 +503,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                 cfe->modelObj->oOpacity -= 3;
             }
             if ((gGlobalTimer % 30 == 0) && cfe->modelObj->oOpacity > 200) {
-                //play_sound(SOUND_FNAB_WARIONOTIF, gGlobalSoundSource);
+                play_sound(SOUND_PEACH_THANK_YOU_MARIO, gGlobalSoundSource);
             }
             if (gGlobalTimer % 4 == 0) {
                 cfe->modelObj->oOpacity ++;
@@ -511,7 +511,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                     cfe->modelObj->oOpacity = 255;
                     cfe->state = FNABE_ATTACK;
                     fnab_enemy_set_target(&cfe);
-                    //play_sound(SOUND_CUSTOM_FOREGROUND_1_WARIOATTACK, gGlobalSoundSource);
+                    play_sound(SOUND_PEACH_DEAR_MARIO, gGlobalSoundSource);
                 }
             }
         }
@@ -640,6 +640,9 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
             }
 
             if (steps > 0) {
+                if (cfe->info->personality == PERSONALITY_WARIO) {
+                    play_sound(SOUND_OBJ_MAD_PIANO_CHOMPING, gGlobalSoundSource);
+                }
                 cfe->modelObj->oFaceAngleYaw = (modeldir*0x4000) + 0x8000;
             }
             cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f;
@@ -1150,7 +1153,18 @@ void fnab_loop(void) {
                 if (get_map_data(snd_x,snd_y)>0) {
                     breakerCharges[1]--;
 
-                    play_sound(SOUND_GENERAL_COIN, gGlobalSoundSource);
+                    u16 rand_sound = random_u16()%3;
+                    switch(rand_sound) {
+                        case 0:
+                            play_sound(SOUND_MARIO_HAHA, gGlobalSoundSource);
+                            break;
+                        case 1:
+                            play_sound(SOUND_MARIO_UH, gGlobalSoundSource);
+                            break;
+                        case 2:
+                            play_sound(SOUND_MARIO_YAHOO, gGlobalSoundSource);
+                            break;
+                    }
 
                     snd_timer = 30;
                     for (int i = 0; i<ENEMY_COUNT; i++) {
