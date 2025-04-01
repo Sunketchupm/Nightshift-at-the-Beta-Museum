@@ -162,6 +162,9 @@ u8 breakerDoFix = FALSE;
 u8 cartridgeTilt = FALSE;
 
 u16 fnab_clock = 0;
+u8 fnab_night_id = 0;
+
+u8 fnab_call_played = FALSE;
 
 struct enemyInfo motosInfo = {
     .homeX = 5,
@@ -249,6 +252,14 @@ struct enemyInfo luigiInfo = {
 
     .jumpscareScale = .6f,
     .personality = PERSONALITY_LUIGI,
+};
+
+u8 nightEnemyDifficulty[5][ENEMY_COUNT] = {
+    {5,4,0,0,0}, //NIGHT 1
+    {6,6,10,0,0}, //NIGHT 2
+    {8,8,0,7,0}, //NIGHT 3
+    {11,11,11,11,0}, //NIGHT 4
+    {0,0,0,0,15}, //NIGHT 5
 };
 
 struct fnabEnemy enemyList[ENEMY_COUNT];
@@ -460,7 +471,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                 cfe->modelObj->oOpacity -= 3;
             }
             if ((gGlobalTimer % 30 == 0) && cfe->modelObj->oOpacity > 200) {
-                play_sound(SOUND_GENERAL_BOWSER_KEY_LAND, gGlobalSoundSource);
+                //play_sound(SOUND_FNAB_WARIONOTIF, gGlobalSoundSource);
             }
             if (gGlobalTimer % 4 == 0) {
                 cfe->modelObj->oOpacity ++;
@@ -468,6 +479,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                     cfe->modelObj->oOpacity = 255;
                     cfe->state = FNABE_ATTACK;
                     fnab_enemy_set_target(&cfe);
+                    //play_sound(SOUND_CUSTOM_FOREGROUND_1_WARIOATTACK, gGlobalSoundSource);
                 }
             }
         }
@@ -476,8 +488,13 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
     //DEFAULT PERSONALITY
     if (cfe->info->personality == PERSONALITY_DEFAULT || cfe->info->personality == PERSONALITY_LUIGI) {
         if (cfe->state == FNABE_IDLE) {
-            cfe->state = FNABE_WANDER;
-            fnab_enemy_set_target(&cfe);
+            if (fnab_night_id == 0 && fnab_clock < 1800*2) {
+                //do nothing
+            } else {
+                cfe->state = FNABE_WANDER;
+                fnab_enemy_set_target(&cfe);
+            }
+
         }
     }
 
@@ -494,6 +511,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
             cfe->progress -= 1.0f;
 
             u8 tile_landed = 0;
+            u8 start_tile = 0;
             u16 steps = 1+(random_u16()%cfe->info->maxSteps);
             if (cfe->state == FNABE_IDLE || (random_u16()%20)+1>=cfe->difficulty) {
                 steps = 0;
@@ -516,6 +534,8 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
 
                 cfe->x -= dirOffset[dir][0];
                 cfe->y -= dirOffset[dir][1];
+
+                start_tile = get_map_data(cfe->x,cfe->y);
 
                 //if touching another enemy on last turn, go to old position
                 if (i == steps-1) { //only on last step
@@ -613,6 +633,10 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                     }
                     break;
             }
+            //vent queue
+            if (start_tile == 1 && tile_landed == 2) {
+                play_sound(SOUND_ACTION_METAL_STEP, gGlobalSoundSource);
+            }
         }
     } else {
         // About to attack
@@ -654,8 +678,8 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                     }
                 }
             }
-            if (fnab_office_state == OFFICE_STATE_JUMPSCARED) {
-                //prevent double jumpscaring
+            if (fnab_office_state == OFFICE_STATE_JUMPSCARED || fnab_office_state == OFFICE_STATE_WON) {
+                //prevent double jumpscaring, or interrputing a well deserved win
                 canjumpscare = FALSE;
             }
 
@@ -726,6 +750,19 @@ char * clockstrings[] = {
 
 void fnab_render_2d(void) {
 
+    //WIN RENDER
+    if (fnab_office_state == OFFICE_STATE_WON) {
+        //render camera static
+        gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+        create_dl_translation_matrix(MENU_MTX_PUSH, 160, 120, 0);
+        gSPDisplayList(gDisplayListHead++, staticscreen_ss_mesh);
+        gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+
+        print_text_fmt_int(100, 110, "NIGHT COMPLETE", 0);
+
+        return;
+    }
+
     //GAME OVER RENDER
     if (fnab_office_state == OFFICE_STATE_JUMPSCARED && fnab_office_statetimer > 30) {
         //render camera static
@@ -734,7 +771,9 @@ void fnab_render_2d(void) {
         gSPDisplayList(gDisplayListHead++, staticscreen_ss_mesh);
         gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
 
-        print_text_fmt_int(110, 110, "GAME OVER", 0);
+        if (fnab_office_statetimer > 60) {
+            print_text_fmt_int(110, 110, "GAME OVER", 0);
+        }
 
         return;
     }
@@ -908,6 +947,8 @@ void fnab_init(void) {
     camera_mouse_x = -50.0f;
     camera_mouse_y = -50.0f;
 
+    fnab_call_played = FALSE;
+
     for (int i = 0; i < 3; i++) {
         breakerCharges[i] = breakerChargesMax[i];
     }
@@ -922,10 +963,10 @@ void fnab_init(void) {
     monitorScreenObject->oPosY = 0.0f;
     monitorScreenObject->oPosZ = 0.0f;
 
-    fnab_enemy_init(&enemyList[ENEMY_MOTOS],&motosInfo,10);
-    fnab_enemy_init(&enemyList[ENEMY_BULLY],&bullyInfo,10);
-    fnab_enemy_init(&enemyList[ENEMY_WARIO],&warioInfo,10);
-    fnab_enemy_init(&enemyList[ENEMY_LUIGI],&luigiInfo,10);
+    fnab_enemy_init(&enemyList[ENEMY_MOTOS],&motosInfo, nightEnemyDifficulty[fnab_night_id][ENEMY_MOTOS]);
+    fnab_enemy_init(&enemyList[ENEMY_BULLY],&bullyInfo, nightEnemyDifficulty[fnab_night_id][ENEMY_BULLY]);
+    fnab_enemy_init(&enemyList[ENEMY_WARIO],&warioInfo, nightEnemyDifficulty[fnab_night_id][ENEMY_WARIO]);
+    fnab_enemy_init(&enemyList[ENEMY_LUIGI],&luigiInfo, nightEnemyDifficulty[fnab_night_id][ENEMY_LUIGI]);
 }
 
 #define OACTHRESH 0x600
@@ -937,6 +978,23 @@ void fnab_loop(void) {
         fnab_enemy_step(&enemyList[i]);
     }
 
+    if (!fnab_call_played) {
+        fnab_call_played = TRUE;
+        switch(fnab_night_id) {
+            case 0:
+                play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_NIGHT1CALL), 0);
+                break;
+            case 1:
+                play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_NIGHT2CALL), 0);
+                break;
+            case 2:
+                play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_NIGHT3CALL), 0);
+                break;
+            case 4:
+                play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_NIGHT5CALL), 0);
+                break;
+        }
+    }
     //play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_TITLE), 0);
 
     monitorScreenObject->header.gfx.sharedChild = gLoadedGraphNodes[MODEL_MOFF];
@@ -1153,6 +1211,11 @@ void fnab_loop(void) {
                 fade_into_special_warp(WARP_SPECIAL_MARIO_HEAD_REGULAR, 0); // reset game
             }
             break;
+        case OFFICE_STATE_WON:
+            if (fnab_office_statetimer == 120) {
+                fade_into_special_warp(WARP_SPECIAL_MARIO_HEAD_REGULAR, 0); // reset game
+            }
+            break;
     }
     fnab_office_statetimer++;
 
@@ -1194,6 +1257,11 @@ void fnab_loop(void) {
         }
     }
     fnab_clock++;
+    if (fnab_clock >= 1800*6 && fnab_office_state != OFFICE_STATE_WON) {
+        fnab_office_state = OFFICE_STATE_WON;
+        fnab_office_statetimer = 0;
+        play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_WIN), 0);
+    }
 }
 
 
@@ -1201,22 +1269,28 @@ void fnab_loop(void) {
 
 u8 main_menu_state = 0;
 s8 main_menu_index = 0;
+u8 menu_seen_warning = FALSE;
 
 void fnab_main_menu_init(void) {
     main_menu_state = 3;
+    if (menu_seen_warning) {
+        main_menu_state = 0;
+    }
     main_menu_index = 0;
+
+    menu_seen_warning = TRUE;
 }
 
 s32 fnab_main_menu(void) {
     switch(main_menu_state) {
         case 0: // MAIN
-            handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 3);
+            handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 1);
             if (gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON)) {
                 switch(main_menu_index) {
                     case 0:
                         main_menu_state = 2;
                         break;
-                    case 3:
+                    case 1:
                         main_menu_state = 1;
                         break;
                 }
@@ -1232,6 +1306,7 @@ s32 fnab_main_menu(void) {
             handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 4);
 
             if (gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON)) {
+                fnab_night_id = main_menu_index;
                 return 1;
             }
             if (gPlayer1Controller->buttonPressed & (B_BUTTON)) {
@@ -1261,9 +1336,9 @@ void fnab_main_menu_render(void) {
 
             print_text_fmt_int(10, 100-(20*main_menu_index), "^", 0);
             print_text_fmt_int(35, 100, "START", 0);
-            print_text_fmt_int(35, 100-20, "???", 0);
-            print_text_fmt_int(35, 100-40, "???", 0);
-            print_text_fmt_int(35, 100-60, "CREDITS", 0);
+            //print_text_fmt_int(35, 100-20, "???", 0);
+            //print_text_fmt_int(35, 100-40, "???", 0);
+            print_text_fmt_int(35, 100-20, "CREDITS", 0);
             break;
         case 1: // CREDITS
             gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);

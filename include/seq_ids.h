@@ -50,6 +50,10 @@ enum SeqId {
     SEQ_WIN,  // 0x25
     SEQ_JUMPSCARE1,  // 0x26
     SEQ_JUMPSCARE2,  // 0x27
+    SEQ_NIGHT1CALL,  // 0x28
+    SEQ_NIGHT2CALL,  // 0x29
+    SEQ_NIGHT3CALL,  // 0x2A
+    SEQ_NIGHT5CALL,  // 0x2B
     SEQ_COUNT,
 };
 
