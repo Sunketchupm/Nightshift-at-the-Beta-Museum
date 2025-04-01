@@ -243,7 +243,7 @@ struct enemyInfo luigiInfo = {
     .tableAttackChance = .5f,
     .maxSteps = 1,
 
-    .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT},
+    .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_VENT},
 
     .anim[ANIMSLOT_NORMAL] = 0,
     .anim[ANIMSLOT_WINDOW] = 0,
@@ -265,7 +265,7 @@ struct enemyInfo stanleyInfo = {
     .tableAttackChance = .75f,
     .maxSteps = 1,
 
-    .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT},
+    .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_VENT},
 
     .anim[ANIMSLOT_NORMAL] = 0,
     .anim[ANIMSLOT_WINDOW] = 0,
