@@ -167,7 +167,7 @@ u8 fnab_night_id = 0;
 u8 fnab_call_played = FALSE;
 
 struct enemyInfo motosInfo = {
-    .homeX = 5,
+    .homeX = 6,
     .homeY = 0,
     .homeDir = 0,
     .canVent = FALSE,
@@ -769,6 +769,7 @@ void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficu
     cfe->state = FNABE_IDLE;
     cfe->difficulty = difficulty;
     cfe->modelObj = spawn_object(gMarioObject,info->modelId,info->modelBhv);
+    cfe->modelObj->oFaceAngleYaw = (info->homeDir*0x4000) + 0x8000;
     cfe->info = info;
     cfe->animFrameHold = random_u16();
 }
