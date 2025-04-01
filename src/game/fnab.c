@@ -757,6 +757,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
 
 void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficulty) {
     if (difficulty == 0) {
+        cfe->active = FALSE;
         return;
     }
     cfe->active = TRUE;
