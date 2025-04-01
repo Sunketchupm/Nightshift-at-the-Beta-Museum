@@ -128,7 +128,6 @@ u8 path_find(s8 xs, s8 ys, s8 xd, s8 yd, u8 allowVent) {
     return MAPDIR_NO_PATH;
 }
 
-f32 deltaTime = 1.0f;
 Vec3f fnabCameraPos;
 Vec3f fnabCameraFoc;
 struct Object * officePovCamera = NULL;
@@ -163,8 +162,6 @@ u8 breakerDoFix = FALSE;
 u8 cartridgeTilt = FALSE;
 
 u16 fnab_clock = 0;
-
-u8 enemyDifficulty[ENEMY_COUNT] = {4,0,4,4,4};
 
 struct enemyInfo motosInfo = {
     .homeX = 5,
@@ -508,6 +505,9 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                     light_interference_timer = 10;
                 }
             }
+
+            s8 oldx = cfe->x;
+            s8 oldy = cfe->y;
             for (int i = 0; i < steps; i++) {
                 cfe->animFrameHold = random_u16();
 
@@ -517,14 +517,17 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                 cfe->x -= dirOffset[dir][0];
                 cfe->y -= dirOffset[dir][1];
 
-                //if touching another enemy, back up
-                for (int i = 0; i < ENEMY_COUNT; i++) {
-                    if (enemyList[i].active) {
-                        if (cfe != &enemyList[i] && enemyList[i].x == cfe->x && enemyList[i].y == cfe->y) {
-                            cfe->x += dirOffset[dir][0];
-                            cfe->y += dirOffset[dir][1];
-                            cfe->state = FNABE_WANDER;
-                            fnab_enemy_set_target(cfe);
+                //if touching another enemy on last turn, go to old position
+                if (i == steps-1) { //only on last step
+                    for (int i = 0; i < ENEMY_COUNT; i++) {
+                        if (enemyList[i].active) {
+                            if (cfe != &enemyList[i] && enemyList[i].x == cfe->x && enemyList[i].y == cfe->y) {
+                                //cfe->x += dirOffset[dir][0];
+                                //cfe->y += dirOffset[dir][1];
+                                //fnab_enemy_set_target(cfe);
+                                cfe->x = oldx;
+                                cfe->y = oldy;
+                            }
                         }
                     }
                 }
@@ -561,6 +564,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                             cfe->state = FNABE_WANDER;
                             if (dir == MAPDIR_ARRIVED) {
                                 cartridgeTilt = TRUE;
+                                breakerFixing = FALSE;
                                 for (int i = 0; i<3; i++) {
                                     breakerCharges[i] = 0;
                                 }
@@ -879,6 +883,35 @@ void fnab_render_2d(void) {
 }
 
 void fnab_init(void) {
+    officePovCamera = NULL;
+    
+    fnab_cam_index = 0;
+    fnab_cam_last_index = 5;
+    fnab_cam_snap_or_lerp = 0;
+    fnab_office_state = OFFICE_STATE_DESK;
+    fnab_office_action = OACTION_HIDE;
+    fnab_office_statetimer = 0;
+    
+    camera_interference_timer = 0;
+    light_interference_timer = 0;
+    
+    snd_timer = 0;
+    radar_timer = 0;
+    vent_flush_timer = 0;
+    
+    breakerIndex = 0;
+    breakerDoFix = FALSE;
+    cartridgeTilt = FALSE;
+    
+    fnab_clock = 0;
+
+    camera_mouse_x = -50.0f;
+    camera_mouse_y = -50.0f;
+
+    for (int i = 0; i < 3; i++) {
+        breakerCharges[i] = breakerChargesMax[i];
+    }
+
     darknessObject = spawn_object(gMarioObject,MODEL_DARKNESS,bhvStaticObject);
     darknessObject->oPosX = 0.0f;
     darknessObject->oPosY = 0.0f;
@@ -889,19 +922,10 @@ void fnab_init(void) {
     monitorScreenObject->oPosY = 0.0f;
     monitorScreenObject->oPosZ = 0.0f;
 
-    camera_mouse_x = -50.0f;
-    camera_mouse_y = -50.0f;
-
     fnab_enemy_init(&enemyList[ENEMY_MOTOS],&motosInfo,10);
     fnab_enemy_init(&enemyList[ENEMY_BULLY],&bullyInfo,10);
     fnab_enemy_init(&enemyList[ENEMY_WARIO],&warioInfo,10);
     fnab_enemy_init(&enemyList[ENEMY_LUIGI],&luigiInfo,10);
-
-    fnab_cam_snap_or_lerp = 0;
-
-    for (int i = 0; i < 3; i++) {
-        breakerCharges[i] = breakerChargesMax[i];
-    }
 }
 
 #define OACTHRESH 0x600
