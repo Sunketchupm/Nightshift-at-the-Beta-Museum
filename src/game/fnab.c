@@ -583,25 +583,16 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                 start_tile = get_map_data(cfe->x,cfe->y);
 
                 //if touching another enemy on last turn, go to old position
-                if (i == steps-1) { //only on last step
+                //stanley can phase through enemies now (otherwise he gets fucking stuck LMAO)
+                if (i == steps-1 && cfe->info->personality != PERSONALITY_STANLEY) { //only on last step
                     for (int i = 0; i < ENEMY_COUNT; i++) {
                         if (enemyList[i].active) {
                             if (cfe != &enemyList[i] && enemyList[i].x == cfe->x && enemyList[i].y == cfe->y) {
                                 cfe->x += dirOffset[dir][0];
                                 cfe->y += dirOffset[dir][1];
-                                //fnab_enemy_set_target(cfe);
-                                //cfe->x = oldx;
-                                //cfe->y = oldy;
-                                cfe->frustration++;
                             }
                         }
                     }
-                }
-
-                if (cfe->frustration > 4) {
-                    cfe->state = FNABE_WANDER;
-                    fnab_enemy_set_target(&cfe);
-                    cfe->frustration = 0;
                 }
 
                 tile_landed = get_map_data(cfe->x,cfe->y);
@@ -780,7 +771,6 @@ void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficu
         cfe->active = FALSE;
         return;
     }
-    cfe->frustration = 0;
     cfe->active = TRUE;
     cfe->progress = 1.0f;
     cfe->x = info->homeX;
@@ -788,7 +778,7 @@ void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficu
     cfe->tx = info->homeX;
     cfe->ty = info->homeY;
 
-    if (is_b3313_night) {
+    if (is_b3313_night()) {
         info = &stanleyInfo;
         //hijack info struct to make em like stanley
     }

@@ -74,7 +74,6 @@ struct fnabEnemy {
     s8 ventFlushY;
     s8 tx;
     s8 ty;
-    u8 frustration;
     u8 state;
     u8 attackLocation;
     u8 difficulty;//outta 20
