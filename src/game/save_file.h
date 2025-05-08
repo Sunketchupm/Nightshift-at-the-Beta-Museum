@@ -17,7 +17,7 @@
     #define EEPROM_SIZE 0x200
 #endif
 
-#define NUM_SAVE_FILES 4
+#define NUM_SAVE_FILES 1
 
 struct SaveBlockSignature {
     u16 magic;
@@ -42,6 +42,10 @@ struct SaveFile {
     u8 courseStars[COURSE_COUNT]; // 200 bits
 
     u8 courseCoinScores[COURSE_STAGES_COUNT]; // 120 bits
+
+    u8 curNightProgress;
+    u8 customHi;
+    u16 endlessHi;
 
     struct SaveBlockSignature signature; // 32 bits
 };
@@ -196,6 +200,8 @@ void save_file_move_cap_to_default_location(void);
 void disable_warp_checkpoint(void);
 void check_if_should_set_warp_checkpoint(struct WarpNode *warpNode);
 s32 check_warp_checkpoint(struct WarpNode *warpNode);
+
+extern struct SaveBuffer gSaveBuffer;
 
 #if MULTILANG
 enum EuLanguages {

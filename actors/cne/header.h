@@ -1,0 +1,12 @@
+extern u8 cne_frame_ci8[];
+extern u8 cne_frame_pal_rgba16[];
+extern u8 cne_stanley_rgba16[];
+extern Vtx cne_cne_mesh_vtx_0[40];
+extern Gfx cne_cne_mesh_tri_0[];
+extern Vtx cne_cne_mesh_vtx_1[20];
+extern Gfx cne_cne_mesh_tri_1[];
+extern Gfx mat_cne_frame[];
+extern Gfx mat_revert_cne_frame[];
+extern Gfx mat_cne_i5[];
+extern Gfx mat_revert_cne_i5[];
+extern Gfx cne_cne_mesh[];

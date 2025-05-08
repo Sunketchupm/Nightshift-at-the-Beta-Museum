@@ -74,6 +74,7 @@ struct fnabEnemy {
     s8 ventFlushY;
     s8 tx;
     s8 ty;
+    u8 frustration;
     u8 state;
     u8 attackLocation;
     u8 difficulty;//outta 20
@@ -134,6 +135,16 @@ enum officeAction {
     OACTION_CAMERA,
     OACTION_HIDE,
     OACTION_PANEL
+};
+
+enum nightId {
+    NIGHT_1,
+    NIGHT_2,
+    NIGHT_3,
+    NIGHT_4,
+    NIGHT_5,
+    NIGHT_CUSTOM,
+    NIGHT_ENDLESS
 };
 
 void fnab_loop(void);

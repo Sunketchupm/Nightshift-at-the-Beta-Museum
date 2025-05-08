@@ -53,3 +53,5 @@
 #include "stanley/model.inc.c"
 #include "stanley/anims/data.inc.c"
 #include "stanley/anims/table.inc.c"
+#include "cn/model.inc.c"
+#include "cne/model.inc.c"

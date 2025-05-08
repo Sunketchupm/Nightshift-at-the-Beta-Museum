@@ -1620,8 +1620,9 @@ void render_widescreen_setting(void) {
     gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
     if (gPlayer1Controller->buttonPressed & L_TRIG){
         gConfig.widescreen ^= 1;
-        save_file_set_widescreen_mode(gConfig.widescreen);
+        //save_file_set_widescreen_mode(gConfig.widescreen);
     }
+    gConfig.widescreen = 0;
 }
 #endif
 

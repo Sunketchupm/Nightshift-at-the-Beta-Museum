@@ -369,4 +369,8 @@ extern const Gfx white_particle_small_unused_dl[];
 
 
 #include "stanley/anim_header.h"
+#include "cn/header.h"
+
+#include "cne/header.h"
+
 #endif

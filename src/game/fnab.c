@@ -15,6 +15,7 @@
 #include "texscroll.h"
 #include "seq_ids.h"
 #include "audio/external.h"
+#include "save_file.h"
 
 #define _ 0, // Wall / Nothing
 #define F 1, // Floor  
@@ -256,8 +257,8 @@ struct enemyInfo luigiInfo = {
 
 struct enemyInfo stanleyInfo = {
     .homeX = 3,
-    .homeY = 5,
-    .homeDir = 0,
+    .homeY = 1,
+    .homeDir = 1,
     .canVent = TRUE,
     .modelBhv = bhvStanley,
     .modelId = MODEL_STANLEY,
@@ -269,20 +270,32 @@ struct enemyInfo stanleyInfo = {
 
     .anim[ANIMSLOT_NORMAL] = 0,
     .anim[ANIMSLOT_WINDOW] = 0,
-    .anim[ANIMSLOT_VENT] = 0,
+    .anim[ANIMSLOT_VENT] = 2,
     .anim[ANIMSLOT_JUMPSCARE] = 1,
 
     .jumpscareScale = .3f,
     .personality = PERSONALITY_STANLEY,
 };
 
-u8 nightEnemyDifficulty[5][ENEMY_COUNT] = {
+u8 nightEnemyDifficulty[7][ENEMY_COUNT] = {
     {5,4,0,0,0}, //NIGHT 1
     {6,6,10,0,0}, //NIGHT 2
     {8,8,0,7,0}, //NIGHT 3
     {11,11,11,11,0}, //NIGHT 4
-    {0,0,0,0,15}, //NIGHT 5
+    {0,0,0,0,12}, //NIGHT 5
+
+    {0,0,0,0,0}, // CUSTOM NIGHT; will be written to
+    {1,1,1,1,1}, // ENDLESS NIGHT, slowly increases overtime
 };
+
+s32 is_b3313_night(void) {
+    if (nightEnemyDifficulty[NIGHT_CUSTOM][0] != 0x0B) {return FALSE;}
+    if (nightEnemyDifficulty[NIGHT_CUSTOM][1] != 0x03) {return FALSE;}
+    if (nightEnemyDifficulty[NIGHT_CUSTOM][2] != 0x03) {return FALSE;}
+    if (nightEnemyDifficulty[NIGHT_CUSTOM][3] != 0x01) {return FALSE;}
+    if (nightEnemyDifficulty[NIGHT_CUSTOM][4] != 0x03) {return FALSE;}
+    return TRUE;
+}
 
 struct fnabEnemy enemyList[ENEMY_COUNT];
 
@@ -545,11 +558,11 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
             u8 tile_landed = 0;
             u8 start_tile = 0;
             u16 steps = 1+(random_u16()%cfe->info->maxSteps);
-            if (cfe->state == FNABE_IDLE || (random_u16()%20)+1>=cfe->difficulty) {
+            if (cfe->state == FNABE_IDLE || (random_u16()%20)+1>cfe->difficulty) {
                 steps = 0;
             }
             if (steps > 0) {
-                camera_interference_timer = 8;
+                camera_interference_timer = 6;
                 if (get_map_data(cfe->x,cfe->y) == 3) {
                     steps = 1;
                     light_interference_timer = 10;
@@ -574,14 +587,21 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                     for (int i = 0; i < ENEMY_COUNT; i++) {
                         if (enemyList[i].active) {
                             if (cfe != &enemyList[i] && enemyList[i].x == cfe->x && enemyList[i].y == cfe->y) {
-                                //cfe->x += dirOffset[dir][0];
-                                //cfe->y += dirOffset[dir][1];
+                                cfe->x += dirOffset[dir][0];
+                                cfe->y += dirOffset[dir][1];
                                 //fnab_enemy_set_target(cfe);
-                                cfe->x = oldx;
-                                cfe->y = oldy;
+                                //cfe->x = oldx;
+                                //cfe->y = oldy;
+                                cfe->frustration++;
                             }
                         }
                     }
+                }
+
+                if (cfe->frustration > 4) {
+                    cfe->state = FNABE_WANDER;
+                    fnab_enemy_set_target(&cfe);
+                    cfe->frustration = 0;
                 }
 
                 tile_landed = get_map_data(cfe->x,cfe->y);
@@ -760,12 +780,19 @@ void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficu
         cfe->active = FALSE;
         return;
     }
+    cfe->frustration = 0;
     cfe->active = TRUE;
     cfe->progress = 1.0f;
     cfe->x = info->homeX;
     cfe->y = info->homeY;
     cfe->tx = info->homeX;
     cfe->ty = info->homeY;
+
+    if (is_b3313_night) {
+        info = &stanleyInfo;
+        //hijack info struct to make em like stanley
+    }
+
     cfe->state = FNABE_IDLE;
     cfe->difficulty = difficulty;
     cfe->modelObj = spawn_object(gMarioObject,info->modelId,info->modelBhv);
@@ -797,6 +824,8 @@ char * clockstrings[] = {
 };
 
 void fnab_render_2d(void) {
+
+    gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
 
     //WIN RENDER
     if (fnab_office_state == OFFICE_STATE_WON) {
@@ -900,8 +929,12 @@ void fnab_render_2d(void) {
         gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
     }
 
-    u8 clocktime = fnab_clock/1800;
-    print_text_fmt_int(10, 230, clockstrings[clocktime], 0);
+    if (fnab_night_id != NIGHT_ENDLESS) {
+        u8 clocktime = fnab_clock/1800;
+        print_text_fmt_int(10, 230, clockstrings[clocktime], 0);
+    } else {
+        print_text_fmt_int(10, 230, "SCORE-%d", fnab_clock/30);
+    }
     if (fnab_office_state == OFFICE_STATE_DESK) {
         switch(fnab_office_action) {
             case OACTION_CAMERA:
@@ -1020,6 +1053,7 @@ void fnab_init(void) {
 
 #define OACTHRESH 0x600
 
+int old_custom_night_highscore = 0;
 void fnab_loop(void) {
     if (officePovCamera == NULL) {return;}
 
@@ -1135,7 +1169,7 @@ void fnab_loop(void) {
                         if (securityCameras[i].type == SC_TYPE_CAMERA) {
                             fnab_cam_index = i;
                             fnab_cam_last_index = i;
-                            camera_interference_timer = 12;
+                            camera_interference_timer = 6;
                             play_sound(SOUND_MENU_CLICK_CHANGE_VIEW, gGlobalSoundSource);
                         } else {
                             if (breakerCharges[0]>0&&securityCameras[i].doorStatus == 0) {
@@ -1264,15 +1298,39 @@ void fnab_loop(void) {
                 fnab_cam_snap_or_lerp = 1;
                 officePovCamera->oFaceAngleYaw = 0;
             }
+            if (fnab_office_statetimer == 2) {
+                if (fnab_night_id == NIGHT_CUSTOM) {
+                    gSaveBuffer.files[0]->customHi = old_custom_night_highscore;
+                }
+                if (fnab_night_id == NIGHT_ENDLESS) {
+                    // save endless score
+                    if (gSaveBuffer.files[0]->endlessHi < fnab_clock/30) {
+                        gSaveBuffer.files[0]->endlessHi = fnab_clock/30;
+                        gSaveFileModified = TRUE;
+                        save_file_do_save(gCurrSaveFileNum - 1);
+                    }
+                }
+            }
             if (fnab_office_statetimer > 30) {
                 play_sound(SOUND_ENV_WATERFALL1, gGlobalSoundSource);
             }
             if (fnab_office_statetimer == 120) {
+
                 fade_into_special_warp(WARP_SPECIAL_MARIO_HEAD_REGULAR, 0); // reset game
             }
             break;
         case OFFICE_STATE_WON:
             if (fnab_office_statetimer == 120) {
+                if (fnab_night_id == NIGHT_CUSTOM) {
+                    gSaveFileModified = TRUE;
+                    save_file_do_save(gCurrSaveFileNum - 1);
+                }
+                if (fnab_night_id + 1 > gSaveBuffer.files[0]->curNightProgress) {
+                    // You can play the next night
+                    gSaveBuffer.files[0]->curNightProgress = fnab_night_id + 1;
+                    gSaveFileModified = TRUE;
+                    save_file_do_save(gCurrSaveFileNum - 1);
+                }
                 fade_into_special_warp(WARP_SPECIAL_MARIO_HEAD_REGULAR, 0); // reset game
             }
             break;
@@ -1317,10 +1375,18 @@ void fnab_loop(void) {
         }
     }
     fnab_clock++;
-    if (fnab_clock >= 1800*6 && fnab_office_state != OFFICE_STATE_WON) {
-        fnab_office_state = OFFICE_STATE_WON;
-        fnab_office_statetimer = 0;
-        play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_WIN), 0);
+    //fnab_clock += 1800;
+    if (fnab_night_id != NIGHT_ENDLESS) {
+        if (fnab_clock >= 1800*6 && fnab_office_state != OFFICE_STATE_WON) {
+            fnab_office_state = OFFICE_STATE_WON;
+            fnab_office_statetimer = 0;
+            play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_WIN), 0);
+        }
+    } else {
+        if (fnab_clock % 200 == 0) {
+            u16 random_pick = random_u16()%ENEMY_COUNT;
+            enemyList[random_pick].difficulty++;
+        }
     }
 }
 
@@ -1330,6 +1396,7 @@ void fnab_loop(void) {
 u8 main_menu_state = 0;
 s8 main_menu_index = 0;
 u8 menu_seen_warning = FALSE;
+u8 menu_a_hold_timer = 0;
 
 void fnab_main_menu_init(void) {
     main_menu_state = 3;
@@ -1342,15 +1409,31 @@ void fnab_main_menu_init(void) {
 }
 
 s32 fnab_main_menu(void) {
+    menu_a_hold_timer++;
+    if (!(gPlayer1Controller->buttonDown & A_BUTTON)) {
+        menu_a_hold_timer=0;
+    }
     switch(main_menu_state) {
         case 0: // MAIN
-            handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 1);
+            handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 3);
             if (gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON)) {
                 switch(main_menu_index) {
                     case 0:
                         main_menu_state = 2;
                         break;
                     case 1:
+                        if (gSaveBuffer.files[0]->curNightProgress >= NIGHT_CUSTOM) {
+                            main_menu_state = 4;
+                            main_menu_index = 0;
+                        }
+                        break;
+                    case 2:
+                        if (gSaveBuffer.files[0]->curNightProgress >= NIGHT_CUSTOM) {
+                            fnab_night_id = NIGHT_ENDLESS;
+                            return 1;
+                        }
+                        break;
+                    case 3:
                         main_menu_state = 1;
                         break;
                 }
@@ -1366,12 +1449,46 @@ s32 fnab_main_menu(void) {
             handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 4);
 
             if (gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON)) {
-                fnab_night_id = main_menu_index;
-                return 1;
+                if (gSaveBuffer.files[0]->curNightProgress >= main_menu_index) {
+                    fnab_night_id = main_menu_index;
+                    return 1;
+                }
             }
             if (gPlayer1Controller->buttonPressed & (B_BUTTON)) {
                 main_menu_state = 0;
                 main_menu_index = 0;
+            }
+            break;
+        case 4: // CUSTOM NIGHT         
+            handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 5);
+            if (gPlayer1Controller->buttonPressed & R_TRIG) {
+                main_menu_state = 0;
+                return 0;
+            }
+            if ((main_menu_index ==5) && (gPlayer1Controller->buttonPressed & A_BUTTON)) {
+                int thisNightHighscore = 0;
+                for (int i = 0; i < 5; i++) {
+                    thisNightHighscore += nightEnemyDifficulty[NIGHT_CUSTOM][i];
+                }
+                //revert to this if fail
+                old_custom_night_highscore = gSaveBuffer.files[0]->customHi;
+                if (gSaveBuffer.files[0]->customHi < thisNightHighscore) {
+                    gSaveBuffer.files[0]->customHi = thisNightHighscore;
+                }
+
+                fnab_night_id = NIGHT_CUSTOM;
+                return 1;
+            }
+
+            if (menu_a_hold_timer > 15 || (gPlayer1Controller->buttonPressed & A_BUTTON)) {
+                if (nightEnemyDifficulty[NIGHT_CUSTOM][main_menu_index] < 20) {
+                    nightEnemyDifficulty[NIGHT_CUSTOM][main_menu_index] ++;
+                }
+            }
+            if (gPlayer1Controller->buttonPressed & B_BUTTON) {
+                if (nightEnemyDifficulty[NIGHT_CUSTOM][main_menu_index] > 0) {
+                    nightEnemyDifficulty[NIGHT_CUSTOM][main_menu_index] --;
+                }
             }
             break;
     }
@@ -1384,6 +1501,7 @@ void fnab_main_menu_render(void) {
     create_dl_ortho_matrix();
 
     //render camera static
+    gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 20);
     create_dl_translation_matrix(MENU_MTX_PUSH, 160, 120, 0);
     gSPDisplayList(gDisplayListHead++, staticscreen_ss_mesh);
@@ -1394,11 +1512,16 @@ void fnab_main_menu_render(void) {
             print_text_fmt_int(10, 220, "NIGHTSHIFT AT THE", 0);
             print_text_fmt_int(10, 200, "BETA MUSEUM", 0);
 
-            print_text_fmt_int(10, 100-(20*main_menu_index), "^", 0);
+            print_text_fmt_int(10, 100-(20*main_menu_index), "-", 0);
             print_text_fmt_int(35, 100, "START", 0);
-            //print_text_fmt_int(35, 100-20, "???", 0);
-            //print_text_fmt_int(35, 100-40, "???", 0);
-            print_text_fmt_int(35, 100-20, "CREDITS", 0);
+            if (gSaveBuffer.files[0]->curNightProgress >= NIGHT_CUSTOM) {
+                print_text_fmt_int(35, 100-20, "CUSTOM - HI %d", gSaveBuffer.files[0]->customHi);
+                print_text_fmt_int(35, 100-40, "ENDLESS - HI %d", gSaveBuffer.files[0]->endlessHi);
+            } else {
+                print_text_fmt_int(35, 100-20, "???", 0);
+                print_text_fmt_int(35, 100-40, "???", 0);
+            }
+            print_text_fmt_int(35, 100-60, "CREDITS", 0);
             break;
         case 1: // CREDITS
             gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
@@ -1412,24 +1535,28 @@ Voice 2: Rovertronic\n\
 Voice 3: Cheezepin\n\
 \n\
 Mario & Luigi Models: frijolesdotz64\n\
-\n\
 Beta font recreation: Simpson55\n\
+Motos model: Arthurtilly\n\
 \n\
-Motos model: Arthurtilly");
+April Fools btw : )");
             gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
             break;
 
         case 2: // NIGHT SELECT
-            print_text_fmt_int(10, 150-(20*main_menu_index), "^", 0);
+            print_text_fmt_int(10, 150-(20*main_menu_index), "-", 0);
             for (int i = 0; i<5; i++) {
-                print_text_fmt_int(35, 150-(20*i), "NIGHT %d", i+1);
+                if (gSaveBuffer.files[0]->curNightProgress < i) {
+                    print_text_fmt_int(35, 150-(20*i), "???", i+1);
+                } else {
+                    print_text_fmt_int(35, 150-(20*i), "NIGHT %d", i+1);
+                }
             }
             break;
 
         case 3: // EPILEPSY WARNING
-        gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
-        gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
-        print_generic_string_ascii(25,200,"EPILEPSY WARNING!\n\
+            gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+            gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+            print_generic_string_ascii(25,200,"EPILEPSY WARNING!\n\
 \n\
 This Super Mario 64 ROM hack\n\
 contains flashing lights, loud sounds,\n\
@@ -1437,6 +1564,70 @@ and jumpscares.\n\
 \n\
 Press START to continue.");
         gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+            break;
+        case 4: //CUSTOM NIGHT
+            gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
+            gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+            create_dl_translation_matrix(MENU_MTX_PUSH, 160, 120, 0);
+            if (is_b3313_night()) {
+                gSPDisplayList(gDisplayListHead++, cne_cne_mesh);
+            } else {
+                gSPDisplayList(gDisplayListHead++, cn_cn_mesh);
+            }
+            gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+
+            print_text_fmt_int(80, 115, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_MOTOS]);
+            print_text_fmt_int(150, 115, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_BULLY]);
+            print_text_fmt_int(220, 115, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_WARIO]);
+            print_text_fmt_int(115, 35, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_LUIGI]);
+            print_text_fmt_int(185, 35, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_STANLEY]);
+
+            int thisNightHighscore = 0;
+            for (int i = 0; i < 5; i++) {
+                thisNightHighscore += nightEnemyDifficulty[NIGHT_CUSTOM][i];
+            }
+
+            if (is_b3313_night()) {
+                print_text_fmt_int(40, 10, "START - B3313 NIGHT",0);
+            } else {
+                print_text_fmt_int(40, 10, "START - SCORE %d", thisNightHighscore);
+            }
+
+            gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+            gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+            print_generic_string_ascii(25,200,"A - Increase, B - Decrease, R - Go Back");
+            gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+
+            int x;
+            int y;
+            switch(main_menu_index) {
+                case ENEMY_MOTOS:
+                    x = 80;
+                    y = 115;
+                    break;
+                case ENEMY_BULLY:
+                    x = 150;
+                    y = 115;
+                    break;
+                case ENEMY_WARIO:
+                    x = 220;
+                    y = 115;
+                    break;
+                case ENEMY_LUIGI:
+                    x = 115;
+                    y = 35;
+                    break;
+                case ENEMY_STANLEY:
+                    x = 185;
+                    y = 35;
+                    break;
+                case 5:
+                    x = 30;
+                    y = 10;
+                    break;
+            }
+            x -= 16;
+            print_text_fmt_int(x, y, "^", 0);
             break;
     }
 };
