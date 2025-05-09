@@ -13,6 +13,9 @@ const GeoLayout fnab_area_1_geo[] = {
 		GEO_BILLBOARD_WITH_PARAMS_AND_DL(LAYER_ALPHA, 727, 44, -1014, fnab_dl_treeboard_004_mesh_layer_4),
 		GEO_BILLBOARD_WITH_PARAMS_AND_DL(LAYER_ALPHA, 727, 44, -914, fnab_dl_treeboard_005_mesh_layer_4),
 		GEO_BILLBOARD_WITH_PARAMS_AND_DL(LAYER_ALPHA, 727, 44, -814, fnab_dl_treeboard_006_mesh_layer_4),
+		GEO_BILLBOARD_WITH_PARAMS_AND_DL(LAYER_ALPHA, 300, 92, -700, fnab_dl_treeboard_007_mesh_layer_4),
+		GEO_BILLBOARD_WITH_PARAMS_AND_DL(LAYER_ALPHA, 300, 40, -1100, fnab_dl_treeboard_008_mesh_layer_4),
+		GEO_BILLBOARD_WITH_PARAMS_AND_DL(LAYER_ALPHA, 300, 92, -300, fnab_dl_treeboard_009_mesh_layer_4),
 	GEO_CLOSE_NODE(),
 	GEO_RETURN(),
 };
@@ -21,7 +24,7 @@ const GeoLayout fnab_area_1[] = {
 	GEO_OPEN_NODE(),
 		GEO_ZBUFFER(1),
 		GEO_OPEN_NODE(),
-			GEO_CAMERA_FRUSTUM_WITH_FUNC(45.0000, 50, 30000, geo_camera_fov),
+			GEO_CAMERA_FRUSTUM_WITH_FUNC(45.0000, 4, 2500, geo_camera_fov),
 			GEO_OPEN_NODE(),
 				GEO_CAMERA(CAMERA_MODE_8_DIRECTIONS, 0, 0, 0, 0, -100, 0, geo_camera_main),
 				GEO_OPEN_NODE(),

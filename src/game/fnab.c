@@ -263,7 +263,7 @@ struct enemyInfo stanleyInfo = {
     .modelBhv = bhvStanley,
     .modelId = MODEL_STANLEY,
     .frequency = 0.1f,
-    .tableAttackChance = .75f,
+    .tableAttackChance = .55f,
     .maxSteps = 1,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_VENT},
@@ -498,10 +498,20 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
 
     //JUMPSCARE BEHAVIOR
     if (cfe->state == FNABE_JUMPSCARE) {
+        if (cfe->info->personality == PERSONALITY_STANLEY) {
+            if (fnab_office_statetimer < 2) {
+                cfe->modelObj->header.gfx.animInfo.animFrame = 1;
+            }
+            cfe->modelObj->oPosX = approach_f32_asymptotic(cfe->modelObj->oPosX, officePovCamera->oPosX + sins(officePovCamera->oFaceAngleYaw) * coss(officePovCamera->oFaceAnglePitch) * 75.0f,.3f);
+            cfe->modelObj->oPosY = approach_f32_asymptotic(cfe->modelObj->oPosY, officePovCamera->oPosY + -45.0f + cfe->jumpscareYoffset,.3f);
+            cfe->modelObj->oPosZ = approach_f32_asymptotic(cfe->modelObj->oPosZ, officePovCamera->oPosZ + coss(officePovCamera->oFaceAngleYaw) * coss(officePovCamera->oFaceAnglePitch) * 75.0f,.3f);
+        } else {
+            cfe->modelObj->oPosX = officePovCamera->oPosX + sins(officePovCamera->oFaceAngleYaw) * coss(officePovCamera->oFaceAnglePitch) * 75.0f;
+            cfe->modelObj->oPosY = officePovCamera->oPosY + -45.0f + cfe->jumpscareYoffset; // + sins(officePovCamera->oFaceAnglePitch) * -5.0f;
+            cfe->modelObj->oPosZ = officePovCamera->oPosZ + coss(officePovCamera->oFaceAngleYaw) * coss(officePovCamera->oFaceAnglePitch) * 75.0f;
+        }
         //play_sound(SOUND_OBJ2_SMALL_BULLY_ATTACKED, gGlobalSoundSource);
-        cfe->modelObj->oPosX = officePovCamera->oPosX + sins(officePovCamera->oFaceAngleYaw) * coss(officePovCamera->oFaceAnglePitch) * 75.0f;
-        cfe->modelObj->oPosY = officePovCamera->oPosY + -45.0f + cfe->jumpscareYoffset; // + sins(officePovCamera->oFaceAnglePitch) * -5.0f;
-        cfe->modelObj->oPosZ = officePovCamera->oPosZ + coss(officePovCamera->oFaceAngleYaw) * coss(officePovCamera->oFaceAnglePitch) * 75.0f;
+
         cfe->modelObj->oFaceAngleYaw = obj_angle_to_object(cfe->modelObj,officePovCamera);
         obj_scale(cfe->modelObj,cfe->info->jumpscareScale);
         cfe->modelObj->header.gfx.animInfo.animFrame+=2;
@@ -751,6 +761,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
 
                 cfe->jumpscareYoffset = -75.f;
                 obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_JUMPSCARE]);
+                cfe->modelObj->header.gfx.animInfo.animFrame = 1;
 
                 if (cfe->info->personality == PERSONALITY_WARIO) {
                     play_music(SEQ_PLAYER_ENV, SEQUENCE_ARGS(15, SEQ_JUMPSCARE2), 0);
@@ -761,7 +772,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
         }
     }
 
-    if (cfe->info->personality != PERSONALITY_WARIO) {
+    if (cfe->info->personality != PERSONALITY_WARIO || cfe->info->personality != PERSONALITY_STANLEY) {
         cfe->modelObj->header.gfx.animInfo.animFrame = cfe->animFrameHold%cfe->modelObj->header.gfx.animInfo.curAnim->loopEnd;
     }
 }
@@ -1471,7 +1482,7 @@ s32 fnab_main_menu(void) {
             }
 
             if (menu_a_hold_timer > 15 || (gPlayer1Controller->buttonPressed & A_BUTTON)) {
-                if (nightEnemyDifficulty[NIGHT_CUSTOM][main_menu_index] < 20) {
+                if (nightEnemyDifficulty[NIGHT_CUSTOM][main_menu_index] < 15) {
                     nightEnemyDifficulty[NIGHT_CUSTOM][main_menu_index] ++;
                 }
             }
