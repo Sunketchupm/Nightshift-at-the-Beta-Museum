@@ -19,14 +19,10 @@
 /* Advanced homebrew ROM header bytes: https://n64brew.dev/wiki/ROM_Header#Advanced_Homebrew_ROM_Header */
 .word  0x82000000
 #else
-.word  0x00000000               /* Unknown */
+.word  0x00800000               /* Unknown */
 #endif
 .word  0x0000004E               /* Cartridge */
-#if defined(EEP4K) && !defined(EMU_DEFAULT_TO_GCN)
-.ascii "SM"                     /* Cartridge ID */
-#else
 .ascii "ED"                     /* Cartridge ID */
-#endif
 
 /* Region */
 #if defined(VERSION_JP) || defined(VERSION_SH)

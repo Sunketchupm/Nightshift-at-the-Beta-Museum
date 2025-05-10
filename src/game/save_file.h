@@ -46,6 +46,7 @@ struct SaveFile {
     u8 curNightProgress;
     u8 customHi;
     u16 endlessHi;
+    u8 fnabStarFlags;
 
     struct SaveBlockSignature signature; // 32 bits
 };

@@ -102,6 +102,10 @@ enum mapDirection {
 extern Vec3f fnabCameraPos;
 extern Vec3f fnabCameraFoc;
 
+extern u8 n64_mouse_enabled;
+extern f32 n64_mouse_x;
+extern f32 n64_mouse_y;
+
 enum officeState {
     OFFICE_STATE_DESK,
     OFFICE_STATE_HIDE,
@@ -152,6 +156,7 @@ void fnab_render_2d(void);
 void bhv_fnab_camera(void);
 void bhv_fnab_door(void);
 void bhv_stanley_title(void);
+void fnab_mouse_render(void);
 
 s32 fnab_main_menu(void);
 void fnab_main_menu_render(void);

@@ -31,6 +31,7 @@
 #include "vc_ultra.h"
 #include "profiling.h"
 #include "emutest.h"
+#include "fnab.h"
 
 // Emulators that the Instant Input patch should not be applied to
 #define INSTANT_INPUT_BLACKLIST (EMU_CONSOLE | EMU_WIIVC | EMU_ARES | EMU_SIMPLE64 | EMU_CEN64)
@@ -692,6 +693,9 @@ void init_controllers(void) {
 
         // Is controller plugged in?
         if (gControllerBits & (1 << port)) {
+            if ((gControllerStatuses[1].type & CONT_TYPE_MASK)==CONT_TYPE_MOUSE) {
+                n64_mouse_enabled = TRUE;
+            }
             // The game allows you to have just 1 controller plugged
             // into any port in order to play the game. this was probably
             // so if any of the ports didn't work, you can have controllers

@@ -149,6 +149,12 @@ f32 camera_mouse_x = 0.0f;
 f32 camera_mouse_y = 0.0f;
 u8 camera_mouse_selecting = FALSE;
 
+u8 n64_mouse_enabled = FALSE;
+u8 n64_mouse_selecting = FALSE;
+u8 n64_mouse_camera_flick_state = 0;
+f32 n64_mouse_x = 0.0f;
+f32 n64_mouse_y = 0.0f;
+
 u8 snd_x = -1;
 u8 snd_y = -1;
 u8 snd_timer = 0;
@@ -262,7 +268,7 @@ struct enemyInfo stanleyInfo = {
     .canVent = TRUE,
     .modelBhv = bhvStanley,
     .modelId = MODEL_STANLEY,
-    .frequency = 0.1f,
+    .frequency = 0.09f,
     .tableAttackChance = .55f,
     .maxSteps = 1,
 
@@ -325,6 +331,8 @@ struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
     {.name = NULL},
 
     {.name = "NORTH VENT"},
+
+    {.name = NULL},
 };
 
 void bhv_fnab_door(void) {
@@ -366,6 +374,9 @@ void bhv_fnab_door(void) {
         case 0:
         case 2:
             fnabMap[mapy][mapx] = 1;//open
+            if (GET_BPARAM1(o->oBehParams) == 1) {
+                fnabMap[mapy][mapx] = 3;//visible from window door
+            }
 
             o->oPosY += 12.0f;
             if (o->oPosY > 190.0f) {
@@ -411,6 +422,14 @@ void bhv_fnab_camera(void) {
 
         if (o->oBehParams2ndByte == 0) {
             o->oFaceAngleYaw += -gPlayer1Controller->rawStickX*7;
+            if (n64_mouse_enabled && n64_mouse_camera_flick_state != 2) {
+                if (n64_mouse_x > 320.0f-80.0f) {
+                    o->oFaceAngleYaw -= 0x200;
+                }
+                if (n64_mouse_x < 0.0f+80.0f) {
+                    o->oFaceAngleYaw += 0x200;
+                }
+            }
         }
 
         if (o->oFaceAngleYaw > o->oMoveAngleYaw + 0x1300) {
@@ -772,7 +791,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
         }
     }
 
-    if (cfe->info->personality != PERSONALITY_WARIO || cfe->info->personality != PERSONALITY_STANLEY) {
+    if (cfe->info->personality != PERSONALITY_WARIO) {
         cfe->modelObj->header.gfx.animInfo.animFrame = cfe->animFrameHold%cfe->modelObj->header.gfx.animInfo.curAnim->loopEnd;
     }
 }
@@ -824,8 +843,72 @@ char * clockstrings[] = {
     "6 AM"
 };
 
-void fnab_render_2d(void) {
+s32 mouse_click_button(f32 x, f32 y, f32 width) {
+    if (!n64_mouse_enabled) {return 0;}
 
+    if (n64_mouse_x < x) {return 0;}
+    if (n64_mouse_y > y + 16.f) {return 0;}
+    if (n64_mouse_x > x + width) {return 0;}
+    if (n64_mouse_y < y) {return 0;}
+
+    n64_mouse_selecting = TRUE;
+    if (gPlayer2Controller->buttonDown & A_BUTTON) {
+        return 2; //clicked
+    }
+    return 1; //hover
+}
+
+void fnab_mouse_loop(void) {
+    if (n64_mouse_selecting && (gPlayer2Controller->buttonPressed & A_BUTTON)) {
+        gPlayer1Controller->buttonPressed |= A_BUTTON;
+    }
+
+    n64_mouse_selecting = FALSE;
+
+    n64_mouse_x += gPlayer2Controller->rawStickX;
+    n64_mouse_y += gPlayer2Controller->rawStickY;
+
+    n64_mouse_x = CLAMP(n64_mouse_x,10.0f,310.0f);
+    n64_mouse_y = CLAMP(n64_mouse_y,10.0f,230.0f);
+
+    if (n64_mouse_camera_flick_state == 1) {
+        n64_mouse_camera_flick_state = 2;
+    }
+    if (n64_mouse_y < 25.0f && n64_mouse_camera_flick_state == 0) {
+        n64_mouse_camera_flick_state = 1;
+    }
+    if (n64_mouse_y >= 25.0f && n64_mouse_camera_flick_state == 2) {
+        n64_mouse_camera_flick_state = 0;
+    }
+}
+
+void fnab_mouse_render(void) {
+    gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+    create_dl_translation_matrix(MENU_MTX_PUSH, n64_mouse_x, n64_mouse_y, 0);
+    if (!n64_mouse_selecting) {
+        gSPDisplayList(gDisplayListHead++, mouse1_mouse1_mesh);
+    } else {
+        gSPDisplayList(gDisplayListHead++, mouse2_mouse2_mesh);
+    }
+    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+    gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+}
+
+s32 exit_button(void) {
+    return (mouse_click_button(270.0f,5.0f,40.0f)==2);
+}
+s32 exit_button_hover(void) {
+    return (mouse_click_button(270.0f,5.0f,40.0f));
+}
+
+void exit_render(void) {
+    if (n64_mouse_enabled) {
+        print_text_fmt_int(270, 5, "EXIT", 0);
+    }
+}
+
+
+void fnab_render_2d(void) {
     gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
 
     //WIN RENDER
@@ -950,14 +1033,21 @@ void fnab_render_2d(void) {
         }
     }
     if (fnab_office_state == OFFICE_STATE_CAMERA) {
+        exit_render();
         print_breaker_status(190,220);
         print_text_fmt_int(10, 5, securityCameras[fnab_cam_index].name, 0);
 
         gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
 
+        char * play_sound_string = "Z - Play Sound";
+        if (n64_mouse_enabled) {
+            play_sound_string = "RMB - Play Sound";
+        }
+
+
         //shadow
         gDPSetEnvColor(gDisplayListHead++, 0, 0, 0, 255);
-        print_generic_string_ascii(230,30-1,"Z - Play Sound");
+        print_generic_string_ascii(230,30-1,play_sound_string);
         print_generic_string_ascii(230,50-1,"R - Radar");
         print_generic_string_ascii(230,70-1,"L - Flush Vents");
 
@@ -967,7 +1057,7 @@ void fnab_render_2d(void) {
             // cant play sound
             gDPSetEnvColor(gDisplayListHead++, 255, 0, 0, 255);
         }
-        print_generic_string_ascii(230,30,"Z - Play Sound");
+        print_generic_string_ascii(230,30,play_sound_string);
 
         if (radar_timer == 0) {
             gDPSetEnvColor(gDisplayListHead++, 0, 255, 0, 255);
@@ -1001,6 +1091,8 @@ void fnab_render_2d(void) {
             }
         }
     }
+
+    //fnab_mouse_render();
 }
 
 void fnab_init(void) {
@@ -1031,6 +1123,16 @@ void fnab_init(void) {
 
     fnab_call_played = FALSE;
 
+    if (fnab_night_id <= NIGHT_5) {
+        breakerChargesMax[0] = 3;
+        breakerChargesMax[1] = 3;
+        breakerChargesMax[2] = 2;
+    } else {
+        breakerChargesMax[0] = 4;
+        breakerChargesMax[1] = 4;
+        breakerChargesMax[2] = 4;
+    }
+
     for (int i = 0; i < 3; i++) {
         breakerCharges[i] = breakerChargesMax[i];
     }
@@ -1057,6 +1159,8 @@ void fnab_init(void) {
 int old_custom_night_highscore = 0;
 void fnab_loop(void) {
     if (officePovCamera == NULL) {return;}
+
+    fnab_mouse_loop();
 
     for (int i = 0; i<ENEMY_COUNT; i++) {
         fnab_enemy_step(&enemyList[i]);
@@ -1101,7 +1205,7 @@ void fnab_loop(void) {
                 fnab_office_state = OFFICE_STATE_HIDE;
             }
 
-            if (gPlayer1Controller->buttonPressed & A_BUTTON) {
+            if ((gPlayer1Controller->buttonPressed & A_BUTTON)||n64_mouse_camera_flick_state==1) {
                 switch(fnab_office_action) {
                     case OACTION_CAMERA:
                         fnab_cam_index = 1;
@@ -1149,13 +1253,19 @@ void fnab_loop(void) {
             break;
         case OFFICE_STATE_CAMERA:
             monitorScreenObject->header.gfx.sharedChild = gLoadedGraphNodes[MODEL_MON];
+
+            camera_mouse_selecting = FALSE;
+
             camera_mouse_x += gPlayer1Controller->rawStickX/15.0f;
             camera_mouse_y += gPlayer1Controller->rawStickY/15.0f;
-            camera_mouse_selecting = FALSE;
 
             camera_mouse_x = CLAMP(camera_mouse_x,-190,0);
             camera_mouse_y = CLAMP(camera_mouse_y,-150,0);
 
+            if (n64_mouse_enabled) {
+                camera_mouse_x = n64_mouse_x - 200.0f;
+                camera_mouse_y = n64_mouse_y - 175.0f;
+            }
 
             for (int i = 0; i < SECURITY_CAMERA_CT; i++) {
                 if (securityCameras[i].init == FALSE) {continue;}
@@ -1166,6 +1276,7 @@ void fnab_loop(void) {
 
                 if (distsqr < 64.0f) {
                     camera_mouse_selecting = TRUE;
+                    n64_mouse_selecting = TRUE;
                     if (gPlayer1Controller->buttonPressed & A_BUTTON) {
                         if (securityCameras[i].type == SC_TYPE_CAMERA) {
                             fnab_cam_index = i;
@@ -1184,7 +1295,7 @@ void fnab_loop(void) {
             }
 
             // place sound
-            if ((gPlayer1Controller->buttonPressed & Z_TRIG)&&(snd_timer==0)&&(breakerCharges[1]>0)) {
+            if (((gPlayer1Controller->buttonPressed & Z_TRIG)||(gPlayer2Controller->buttonPressed & B_BUTTON))&&(snd_timer==0)&&(breakerCharges[1]>0)) {
                 snd_x = -camera_mouse_x/10.0f;
                 snd_y = -camera_mouse_y/10.0f;
                 if (get_map_data(snd_x,snd_y)>0) {
@@ -1230,15 +1341,21 @@ void fnab_loop(void) {
                 breakerCharges[2]--;
                 vent_flush_timer = 200;
                 play_sound(SOUND_OBJ_FLAME_BLOWN, gGlobalSoundSource);
+                camera_interference_timer = 15;
 
                 for (int i = 0; i<ENEMY_COUNT; i++) {
                     struct fnabEnemy * ce = &enemyList[i];
 
                     if (!ce->active) {continue;}
                     if (get_map_data(ce->x,ce->y) == 2 || ce->state == FNABE_PRIMED_VENT) {
-                        ce->state = FNABE_FLUSHED;
-                        ce->tx = ce->ventFlushX;
-                        ce->ty = ce->ventFlushY;
+                        ce->state = FNABE_WANDER;
+                        //ce->tx = ce->ventFlushX;
+                        //ce->ty = ce->ventFlushY;
+
+                        ce->x = ce->ventFlushX;
+                        ce->y = ce->ventFlushY;
+
+                        fnab_enemy_set_target(&ce);
                     }
                 }
             }
@@ -1250,7 +1367,7 @@ void fnab_loop(void) {
                 radar_timer = 200;
             }
 
-            if (gPlayer1Controller->buttonPressed & B_BUTTON) {
+            if ((gPlayer1Controller->buttonPressed & B_BUTTON)||exit_button()) {
                 fnab_office_state = OFFICE_STATE_LEAVE_CAMERA;
                 fnab_cam_index = 1;
                 fnab_office_statetimer = 0;
@@ -1274,6 +1391,12 @@ void fnab_loop(void) {
 
                 if (!breakerDoFix) {
                     handle_menu_scrolling(MENU_SCROLL_VERTICAL, &breakerIndex, 0, 2);
+
+                    for (int i = 0; i < 3; i++) {
+                        if (mouse_click_button(90.f,150.0f-(i*20.f),100.f)) {
+                            breakerIndex = i;
+                        }
+                    }
                 }
 
                 if (!breakerDoFix&&(gPlayer1Controller->buttonPressed & A_BUTTON)) {
@@ -1282,7 +1405,7 @@ void fnab_loop(void) {
                     play_sound(SOUND_GENERAL_BOWSER_KEY_LAND, gGlobalSoundSource);
                 }
 
-                if (gPlayer1Controller->buttonPressed & B_BUTTON) {
+                if ((gPlayer1Controller->buttonPressed & B_BUTTON)||n64_mouse_camera_flick_state==1) {
                     play_sound(SOUND_GENERAL_CLOSE_IRON_DOOR, gGlobalSoundSource);
                     fnab_office_state = OFFICE_STATE_DESK;
                     fnab_cam_index = 0;
@@ -1410,13 +1533,21 @@ void fnab_main_menu_init(void) {
 }
 
 s32 fnab_main_menu(void) {
+    fnab_mouse_loop();
+
     menu_a_hold_timer++;
     if (!(gPlayer1Controller->buttonDown & A_BUTTON)) {
         menu_a_hold_timer=0;
     }
     switch(main_menu_state) {
         case 0: // MAIN
-            handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 3);
+            for (int i = 0; i < 5; i++) {
+                if (mouse_click_button(35.f,100.0f-(i*20.f),150.f)) {
+                    main_menu_index = i;
+                }
+            }
+
+            handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 4);
             if (gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON)) {
                 switch(main_menu_index) {
                     case 0:
@@ -1437,36 +1568,46 @@ s32 fnab_main_menu(void) {
                     case 3:
                         main_menu_state = 1;
                         break;
+                    case 4:
+                        main_menu_state = 5;
+                        break;
                 }
             }
             break;
         case 1: // CREDITS
         case 3: // EPILEPSY SCREEN
-            if (gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON|B_BUTTON)) {
+        case 5: // CHANGELOG
+            if ((gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON|B_BUTTON))||exit_button()) {
                 main_menu_state = 0;
             }
             break;
         case 2: // NIGHT SELECT
             handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 4);
 
-            if (gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON)) {
+            for (int i = 0; i < 5; i++) {
+                if (mouse_click_button(35.f,150.0f-(i*20.f),150.f)) {
+                    main_menu_index = i;
+                }
+            }
+
+            if ((gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON))&&!exit_button_hover()) {
                 if (gSaveBuffer.files[0]->curNightProgress >= main_menu_index) {
                     fnab_night_id = main_menu_index;
                     return 1;
                 }
             }
-            if (gPlayer1Controller->buttonPressed & (B_BUTTON)) {
+            if ((gPlayer1Controller->buttonPressed & (B_BUTTON))||exit_button())  {
                 main_menu_state = 0;
                 main_menu_index = 0;
             }
             break;
         case 4: // CUSTOM NIGHT         
             handle_menu_scrolling(MENU_SCROLL_VERTICAL, &main_menu_index, 0, 5);
-            if (gPlayer1Controller->buttonPressed & R_TRIG) {
+            if ((gPlayer1Controller->buttonPressed & R_TRIG)||exit_button()) {
                 main_menu_state = 0;
                 return 0;
             }
-            if ((main_menu_index ==5) && (gPlayer1Controller->buttonPressed & A_BUTTON)) {
+            if ((main_menu_index ==5) && !exit_button_hover() && (gPlayer1Controller->buttonPressed & A_BUTTON)) {
                 int thisNightHighscore = 0;
                 for (int i = 0; i < 5; i++) {
                     thisNightHighscore += nightEnemyDifficulty[NIGHT_CUSTOM][i];
@@ -1503,6 +1644,7 @@ void fnab_main_menu_render(void) {
 
     //render camera static
     gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
+
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 20);
     create_dl_translation_matrix(MENU_MTX_PUSH, 160, 120, 0);
     gSPDisplayList(gDisplayListHead++, staticscreen_ss_mesh);
@@ -1523,6 +1665,7 @@ void fnab_main_menu_render(void) {
                 print_text_fmt_int(35, 100-40, "???", 0);
             }
             print_text_fmt_int(35, 100-60, "CREDITS", 0);
+            print_text_fmt_int(35, 100-80, "CHANGELOG", 0);
             break;
         case 1: // CREDITS
             gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
@@ -1541,6 +1684,7 @@ Motos model: Arthurtilly\n\
 \n\
 April Fools btw : )");
             gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+            exit_render();
             break;
 
         case 2: // NIGHT SELECT
@@ -1552,6 +1696,7 @@ April Fools btw : )");
                     print_text_fmt_int(35, 150-(20*i), "NIGHT %d", i+1);
                 }
             }
+            exit_render();
             break;
 
         case 3: // EPILEPSY WARNING
@@ -1592,6 +1737,9 @@ Press START to continue.");
                 print_text_fmt_int(40, 10, "START - B3313 NIGHT",0);
             } else {
                 print_text_fmt_int(40, 10, "START - SCORE %d", thisNightHighscore);
+                if (thisNightHighscore >= 60) {
+
+                }
             }
 
             gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
@@ -1629,6 +1777,29 @@ Press START to continue.");
             }
             x -= 16;
             print_text_fmt_int(x, y, "^", 0);
+            exit_render();
+            break;
+        case 5: // CUSTOM NIGHT
+            gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+            gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+            print_generic_string_ascii(15,220,"Changelog v1.1 5-9-25\n\
+\n\
+- Added N64 mouse support\n\
+- Nights now unlock sequentially\n\
+- Game can now save progress\n\
+- Added custom night\n\
+- Added endless night\n\
+- Added a secret night\n\
+- Made night 5 easier\n\
+- Improved Stanley jumpscare\n\
+- Improved Stanley AI\n\
+- Fixed visual bugs on Luna PJ64\n\
+- Fixed visual bugs on N64 hardware\n\
+- Map has been tweaked and improved");
+            gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+            exit_render();
             break;
     }
+
+    //fnab_mouse_render();
 };
