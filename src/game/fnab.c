@@ -854,7 +854,7 @@ s32 mouse_click_button(f32 x, f32 y, f32 width) {
     if (n64_mouse_y < y) {return 0;}
 
     n64_mouse_selecting = TRUE;
-    if (gPlayer2Controller->buttonDown & A_BUTTON) {
+    if (gPlayer2Controller->buttonPressed & A_BUTTON) {
         return 2; //clicked
     }
     return 1; //hover
@@ -1568,6 +1568,16 @@ s8 main_menu_index = 0;
 u8 menu_seen_warning = FALSE;
 u8 menu_a_hold_timer = 0;
 
+void fnab_custom_night_button_loop(int x, int y, u8 * difficulty_changer) {
+     if (mouse_click_button(x-16,y,16.0f) == 2) {
+        (*difficulty_changer)--;
+     }
+     if (mouse_click_button(x+16,y,16.0f) == 2) {
+        (*difficulty_changer)++;
+     }
+     (*difficulty_changer) = CLAMP((*difficulty_changer),0,15);
+}
+
 void fnab_main_menu_init(void) {
     main_menu_state = 3;
     if (menu_seen_warning) {
@@ -1576,6 +1586,21 @@ void fnab_main_menu_init(void) {
     main_menu_index = 0;
 
     menu_seen_warning = TRUE;
+}
+
+s32 start_custom_night(void) {
+    int thisNightHighscore = 0;
+    for (int i = 0; i < 5; i++) {
+        thisNightHighscore += nightEnemyDifficulty[NIGHT_CUSTOM][i];
+    }
+    //revert to this if fail
+    old_custom_night_highscore = gSaveBuffer.files[0]->customHi;
+    if (gSaveBuffer.files[0]->customHi < thisNightHighscore) {
+        gSaveBuffer.files[0]->customHi = thisNightHighscore;
+    }
+
+    fnab_night_id = NIGHT_CUSTOM;
+    return 1;
 }
 
 s32 fnab_main_menu(void) {
@@ -1622,11 +1647,13 @@ s32 fnab_main_menu(void) {
             break;
         case 3: // EPILEPSY SCREEN
             if (n64_mouse_enabled) {
-                if (mouse_click_button(20,10,100.f)==2) {
+                if (mouse_click_button(20,10,200.f)==2) {
                     n64_mouse_enabled = FALSE;
+                    n64_mouse_x = 160.0f;
+                    n64_mouse_y = 120.0f;
                     main_menu_state = 0;
                 }
-                if (mouse_click_button(20,30,100.f)==2) {
+                if (mouse_click_button(20,30,200.f)==2) {
                     main_menu_state = 0;
                 }
             } else {
@@ -1667,19 +1694,22 @@ s32 fnab_main_menu(void) {
                 main_menu_state = 0;
                 return 0;
             }
-            if ((main_menu_index ==5) && !exit_button_hover() && (gPlayer1Controller->buttonPressed & A_BUTTON)) {
-                int thisNightHighscore = 0;
-                for (int i = 0; i < 5; i++) {
-                    thisNightHighscore += nightEnemyDifficulty[NIGHT_CUSTOM][i];
-                }
-                //revert to this if fail
-                old_custom_night_highscore = gSaveBuffer.files[0]->customHi;
-                if (gSaveBuffer.files[0]->customHi < thisNightHighscore) {
-                    gSaveBuffer.files[0]->customHi = thisNightHighscore;
-                }
 
-                fnab_night_id = NIGHT_CUSTOM;
-                return 1;
+            if (n64_mouse_enabled) {
+                fnab_custom_night_button_loop(80, 115 ,&nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_MOTOS]  );
+                fnab_custom_night_button_loop(150, 115,&nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_BULLY]  );
+                fnab_custom_night_button_loop(220, 115,&nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_WARIO]  );
+                fnab_custom_night_button_loop(115, 35 ,&nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_LUIGI]  );
+                fnab_custom_night_button_loop(185, 35 ,&nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_STANLEY]);
+
+                if (mouse_click_button(40, 10, 140.0f) == 2) {
+                    return start_custom_night();
+                }
+                break;
+            }
+
+            if ((main_menu_index ==5) && (gPlayer1Controller->buttonPressed & A_BUTTON)) {
+                return start_custom_night();
             }
 
             if (menu_a_hold_timer > 15 || (gPlayer1Controller->buttonPressed & A_BUTTON)) {
@@ -1697,6 +1727,13 @@ s32 fnab_main_menu(void) {
 
     scroll_textures();
     return 0;
+}
+
+void fnab_custom_night_render_buttons(int x, int y) {
+    if (n64_mouse_enabled) {
+        print_text_fmt_int(x-16, y, "-",0);
+        print_text_fmt_int(x+16, y, "+",0);
+    }
 }
 
 void fnab_main_menu_render(void) {
@@ -1796,11 +1833,17 @@ Press START to continue.");
             }
             gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
 
-            print_text_fmt_int(80, 115, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_MOTOS]);
-            print_text_fmt_int(150, 115, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_BULLY]);
-            print_text_fmt_int(220, 115, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_WARIO]);
-            print_text_fmt_int(115, 35, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_LUIGI]);
-            print_text_fmt_int(185, 35, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_STANLEY]);
+            print_text_fmt_int(80, 115, "%x",  nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_MOTOS]  );
+            print_text_fmt_int(150, 115, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_BULLY]  );
+            print_text_fmt_int(220, 115, "%x", nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_WARIO]  );
+            print_text_fmt_int(115, 35, "%x",  nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_LUIGI]  );
+            print_text_fmt_int(185, 35, "%x",  nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_STANLEY]);
+
+            fnab_custom_night_render_buttons(80, 115 );
+            fnab_custom_night_render_buttons(150, 115);
+            fnab_custom_night_render_buttons(220, 115);
+            fnab_custom_night_render_buttons(115, 35 );
+            fnab_custom_night_render_buttons(185, 35 );
 
             int thisNightHighscore = 0;
             for (int i = 0; i < 5; i++) {
@@ -1816,41 +1859,45 @@ Press START to continue.");
                 }
             }
 
-            gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
-            gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
-            print_generic_string_ascii(25,200,"A - Increase, B - Decrease, R - Go Back");
-            gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
-
-            int x;
-            int y;
-            switch(main_menu_index) {
-                case ENEMY_MOTOS:
-                    x = 80;
-                    y = 115;
-                    break;
-                case ENEMY_BULLY:
-                    x = 150;
-                    y = 115;
-                    break;
-                case ENEMY_WARIO:
-                    x = 220;
-                    y = 115;
-                    break;
-                case ENEMY_LUIGI:
-                    x = 115;
-                    y = 35;
-                    break;
-                case ENEMY_STANLEY:
-                    x = 185;
-                    y = 35;
-                    break;
-                case 5:
-                    x = 30;
-                    y = 10;
-                    break;
+            if (!n64_mouse_enabled) {
+                gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+                gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+                print_generic_string_ascii(25,200,"A - Increase, B - Decrease, R - Go Back");
+                gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
             }
-            x -= 16;
-            print_text_fmt_int(x, y, "^", 0);
+
+            if (!n64_mouse_enabled) {
+                int x;
+                int y;
+                switch(main_menu_index) {
+                    case ENEMY_MOTOS:
+                        x = 80;
+                        y = 115;
+                        break;
+                    case ENEMY_BULLY:
+                        x = 150;
+                        y = 115;
+                        break;
+                    case ENEMY_WARIO:
+                        x = 220;
+                        y = 115;
+                        break;
+                    case ENEMY_LUIGI:
+                        x = 115;
+                        y = 35;
+                        break;
+                    case ENEMY_STANLEY:
+                        x = 185;
+                        y = 35;
+                        break;
+                    case 5:
+                        x = 30;
+                        y = 10;
+                        break;
+                }
+                x -= 16;
+                print_text_fmt_int(x, y, "^", 0);
+            }
             exit_render();
             break;
         case 5: // CUSTOM NIGHT
