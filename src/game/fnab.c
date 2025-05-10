@@ -38,7 +38,7 @@ u8 fnabMap[20][20] = {
 {V _ _ _ _ V _ _ _ A _ _ _ A W W W _ F _},
 {V V V V V V _ _ _ _ _ _ _ _ _ _ _ _ _ _},
 {_ _ _ _ _ V _ _ _ _ _ A _ _ _ _ _ _ _ _},
-{_ _ _ _ _ V V V V V V W _ _ _ _ _ _ _ _},
+{_ _ _ _ _ V V V V V V V _ _ _ _ _ _ _ _},
 {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _},
 {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _},
 {_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _},
@@ -575,7 +575,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
     }
 
     //PER FRAME PROGRESS
-    cfe->progress += cfe->info->frequency;
+    cfe->progress += cfe->info->frequency*.7f; //make game slower by 70% og so the player has more time to actually strategize
     if (cfe->state == FNABE_FLUSHED) {
         cfe->progress += cfe->info->frequency*5.0f;
     }
@@ -1123,6 +1123,12 @@ void fnab_render_2d(void) {
         print_text_fmt_int(90, 150-breakerIndex*20, "^", 0);
         print_breaker_status(110,150);
 
+        if (n64_mouse_enabled) {
+            create_dl_translation_matrix(MENU_MTX_PUSH, 292.0f, 145.0f, 0);
+            gSPDisplayList(gDisplayListHead++, cambtn2_cambtn2_mesh);
+            gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+        }
+
         if (breakerDoFix) {
             for (int i = 0; i<7;i++) {
                 char * printChar = ".";
@@ -1537,7 +1543,7 @@ void fnab_loop(void) {
         vent_flush_timer --;
     }
     if (breakerDoFix == TRUE) {
-        breakerFixing += .01f;
+        breakerFixing += .015f;
         if (breakerFixing >= 7.f) {
             play_sound(SOUND_GENERAL_BOWSER_KEY_LAND, gGlobalSoundSource);
             breakerDoFix = FALSE;
@@ -1570,12 +1576,11 @@ u8 menu_a_hold_timer = 0;
 
 void fnab_custom_night_button_loop(int x, int y, u8 * difficulty_changer) {
      if (mouse_click_button(x-16,y,16.0f) == 2) {
-        (*difficulty_changer)--;
+        (*difficulty_changer) = CLAMP((*difficulty_changer)-1,0,15);
      }
      if (mouse_click_button(x+16,y,16.0f) == 2) {
-        (*difficulty_changer)++;
+        (*difficulty_changer) = CLAMP((*difficulty_changer)+1,0,15);
      }
-     (*difficulty_changer) = CLAMP((*difficulty_changer),0,15);
 }
 
 void fnab_main_menu_init(void) {
