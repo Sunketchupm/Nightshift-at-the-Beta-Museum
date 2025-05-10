@@ -1,3 +1,9 @@
+![](https://i.imgur.com/9cs8QWC.png)
+
+# Nightshift at the Beta Museum
+Soruce code for Nightshift at the Beta Museum. BPS patches availible to download in releases. 95% of game logic is in `fnab.h` and `fnab.c`. Code is somewhat messy, but it contains non-recursive function pathfinding which could be utilized in other projects if needed.
+
+
 # ![](https://i.imgur.com/CeOukzk.gif) HackerSM64 ![](https://i.imgur.com/s0LUbTo.gif)
 
 **AFTER CLONING THE REPO, CHECK OUT THE `include/config` FOLDER BEFORE ANYTHING ELSE! THERE'S A LOT OF STUFF IN THIS REPO THAT CAN BE TOGGLED THERE.**
