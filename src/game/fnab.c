@@ -152,8 +152,8 @@ u8 camera_mouse_selecting = FALSE;
 u8 n64_mouse_enabled = FALSE;
 u8 n64_mouse_selecting = FALSE;
 u8 n64_mouse_camera_flick_state = 0;
-f32 n64_mouse_x = 0.0f;
-f32 n64_mouse_y = 0.0f;
+f32 n64_mouse_x = 160.0f;
+f32 n64_mouse_y = 120.0f;
 
 u8 snd_x = -1;
 u8 snd_y = -1;
@@ -319,7 +319,7 @@ struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
     {.name = "L IS REAL EXHIBIT"},
     {.name = "APPARITION HALL"},
     {.name = "RESTROOMS"},
-    {.name = "SOUTH VENT"},
+    {.name = "SOUTH VENT 1"},
     {.name = "HALL R"},
     {.name = "SPACEWORLD CASTLE"},
     {.name = "CARTRIDGE ROOM"},
@@ -333,6 +333,8 @@ struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
     {.name = "NORTH VENT"},
 
     {.name = NULL},
+
+    {.name = "SOUTH VENT 2"},
 };
 
 void bhv_fnab_door(void) {
@@ -858,6 +860,21 @@ s32 mouse_click_button(f32 x, f32 y, f32 width) {
     return 1; //hover
 }
 
+s32 mouse_click_button_vertical(f32 x, f32 y, f32 height) {
+    if (!n64_mouse_enabled) {return 0;}
+
+    if (n64_mouse_x < x) {return 0;}
+    if (n64_mouse_y > y + height) {return 0;}
+    if (n64_mouse_x > x + 16.f) {return 0;}
+    if (n64_mouse_y < y) {return 0;}
+
+    n64_mouse_selecting = TRUE;
+    if (gPlayer2Controller->buttonDown & A_BUTTON) {
+        return 2; //clicked
+    }
+    return 1; //hover
+}
+
 void fnab_mouse_loop(void) {
     if (n64_mouse_selecting && (gPlayer2Controller->buttonPressed & A_BUTTON)) {
         gPlayer1Controller->buttonPressed |= A_BUTTON;
@@ -870,28 +887,32 @@ void fnab_mouse_loop(void) {
 
     n64_mouse_x = CLAMP(n64_mouse_x,10.0f,310.0f);
     n64_mouse_y = CLAMP(n64_mouse_y,10.0f,230.0f);
+}
 
+void fnab_camera_flick_handler(f32 x) {
     if (n64_mouse_camera_flick_state == 1) {
         n64_mouse_camera_flick_state = 2;
     }
-    if (n64_mouse_y < 25.0f && n64_mouse_camera_flick_state == 0) {
+    if (mouse_click_button_vertical(x,145.0f,80.0f)>0 && n64_mouse_camera_flick_state == 0) {
         n64_mouse_camera_flick_state = 1;
     }
-    if (n64_mouse_y >= 25.0f && n64_mouse_camera_flick_state == 2) {
+    if (mouse_click_button_vertical(x,145.0f,80.0f)==0 && n64_mouse_camera_flick_state == 2) {
         n64_mouse_camera_flick_state = 0;
     }
 }
 
 void fnab_mouse_render(void) {
-    gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
-    create_dl_translation_matrix(MENU_MTX_PUSH, n64_mouse_x, n64_mouse_y, 0);
-    if (!n64_mouse_selecting) {
-        gSPDisplayList(gDisplayListHead++, mouse1_mouse1_mesh);
-    } else {
-        gSPDisplayList(gDisplayListHead++, mouse2_mouse2_mesh);
+    if (n64_mouse_enabled) {
+        gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+        create_dl_translation_matrix(MENU_MTX_PUSH, n64_mouse_x, n64_mouse_y, 0);
+        if (!n64_mouse_selecting) {
+            gSPDisplayList(gDisplayListHead++, mouse1_mouse1_mesh);
+        } else {
+            gSPDisplayList(gDisplayListHead++, mouse2_mouse2_mesh);
+        }
+        gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+        gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
     }
-    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
-    gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
 }
 
 s32 exit_button(void) {
@@ -1022,34 +1043,55 @@ void fnab_render_2d(void) {
     if (fnab_office_state == OFFICE_STATE_DESK) {
         switch(fnab_office_action) {
             case OACTION_CAMERA:
-                print_text_fmt_int(10, 10, "CAMERA", 0);
+                if (n64_mouse_enabled) {
+                    create_dl_translation_matrix(MENU_MTX_PUSH, 0.0f, 145.0f, 0);
+                    gSPDisplayList(gDisplayListHead++, cambtn_cambtn_mesh);
+                    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+                } else {
+                    print_text_fmt_int(10, 10, "CAMERA", 0);
+                }
                 break;
             case OACTION_HIDE:
                 //print_text_fmt_int(150, 10, "HIDE", 0);
                 break;
             case OACTION_PANEL:
-                print_text_fmt_int(220, 10, "BREAKER", 0);
+                if (n64_mouse_enabled) {
+                    create_dl_translation_matrix(MENU_MTX_PUSH, 292.0f, 145.0f, 0);
+                    gSPDisplayList(gDisplayListHead++, cambtn2_cambtn2_mesh);
+                    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+                } else {
+                    print_text_fmt_int(220, 10, "BREAKER", 0);
+                }
                 break;
         }
     }
+
     if (fnab_office_state == OFFICE_STATE_CAMERA) {
-        exit_render();
+        if (n64_mouse_enabled) {
+            create_dl_translation_matrix(MENU_MTX_PUSH, 0.0f, 145.0f, 0);
+            gSPDisplayList(gDisplayListHead++, cambtn_cambtn_mesh);
+            gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+        }
+
         print_breaker_status(190,220);
         print_text_fmt_int(10, 5, securityCameras[fnab_cam_index].name, 0);
 
         gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
 
         char * play_sound_string = "Z - Play Sound";
+        char * radar_string = "R - Radar";
+        char * vent_string = "L - Flush Vents";
         if (n64_mouse_enabled) {
             play_sound_string = "RMB - Play Sound";
+            radar_string = "Radar";
+            vent_string = "Flush Vents";
         }
-
 
         //shadow
         gDPSetEnvColor(gDisplayListHead++, 0, 0, 0, 255);
         print_generic_string_ascii(230,30-1,play_sound_string);
-        print_generic_string_ascii(230,50-1,"R - Radar");
-        print_generic_string_ascii(230,70-1,"L - Flush Vents");
+        print_generic_string_ascii(230,50-1,radar_string);
+        print_generic_string_ascii(230,70-1,vent_string);
 
         if (get_map_data(-camera_mouse_x/10.f,-camera_mouse_y/10.f)) {
             gDPSetEnvColor(gDisplayListHead++, 0, 255, 0, 255);
@@ -1065,7 +1107,7 @@ void fnab_render_2d(void) {
             // cant play sound
             gDPSetEnvColor(gDisplayListHead++, 255, 0, 0, 255);
         }
-        print_generic_string_ascii(230,50,"R - Radar");
+        print_generic_string_ascii(230,50,radar_string);
 
         if (vent_flush_timer == 0) {
             gDPSetEnvColor(gDisplayListHead++, 0, 255, 0, 255);
@@ -1073,7 +1115,7 @@ void fnab_render_2d(void) {
             // cant play sound
             gDPSetEnvColor(gDisplayListHead++, 255, 0, 0, 255);
         }
-        print_generic_string_ascii(230,70,"L - Flush Vents");
+        print_generic_string_ascii(230,70,vent_string);
 
         gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
     }
@@ -1191,15 +1233,17 @@ void fnab_loop(void) {
             fnab_cam_snap_or_lerp = 1;
             if (officePovCamera->oFaceAngleYaw < -OACTHRESH) {
                 fnab_office_action = OACTION_PANEL;
+                fnab_camera_flick_handler(300.0f);
             }
             if (officePovCamera->oFaceAngleYaw >= -OACTHRESH && officePovCamera->oFaceAngleYaw <= OACTHRESH) {
                 fnab_office_action = OACTION_HIDE;
             }
             if (officePovCamera->oFaceAngleYaw > OACTHRESH) {
                 fnab_office_action = OACTION_CAMERA;
+                fnab_camera_flick_handler(0.0f);
             }
 
-            if (gPlayer1Controller->buttonDown & Z_TRIG) {
+            if ((gPlayer1Controller->buttonDown & Z_TRIG)||(n64_mouse_y < 30.0f)) {
                 fnab_cam_index = 2;
                 fnab_office_statetimer = 0;
                 fnab_office_state = OFFICE_STATE_HIDE;
@@ -1227,7 +1271,7 @@ void fnab_loop(void) {
                 fnab_cam_index = 3;
             }
             if (fnab_office_statetimer > 20) {
-                if (!(gPlayer1Controller->buttonDown & Z_TRIG)) {
+                if (!(gPlayer1Controller->buttonDown & Z_TRIG)&&(n64_mouse_y > 30.0f)) {
                     fnab_office_state = OFFICE_STATE_UNHIDE;
                     fnab_cam_index = 2;
                     fnab_office_statetimer = 0;
@@ -1252,6 +1296,7 @@ void fnab_loop(void) {
             }
             break;
         case OFFICE_STATE_CAMERA:
+            fnab_camera_flick_handler(0.0f);
             monitorScreenObject->header.gfx.sharedChild = gLoadedGraphNodes[MODEL_MON];
 
             camera_mouse_selecting = FALSE;
@@ -1337,7 +1382,7 @@ void fnab_loop(void) {
             }
 
             //activate vent flush
-            if ((gPlayer1Controller->buttonPressed & L_TRIG)&&(vent_flush_timer==0)&&(breakerCharges[2]>0)) {
+            if (((gPlayer1Controller->buttonPressed & L_TRIG)||(mouse_click_button(230,70,50.f)==2))&&(vent_flush_timer==0)&&(breakerCharges[2]>0)) {
                 breakerCharges[2]--;
                 vent_flush_timer = 200;
                 play_sound(SOUND_OBJ_FLAME_BLOWN, gGlobalSoundSource);
@@ -1361,13 +1406,13 @@ void fnab_loop(void) {
             }
 
             //activate radar
-            if ((gPlayer1Controller->buttonPressed & R_TRIG)&&(radar_timer==0)&&(breakerCharges[2]>0)) {
+            if (((gPlayer1Controller->buttonPressed & R_TRIG)||(mouse_click_button(230,50,50.f)==2))&&(radar_timer==0)&&(breakerCharges[2]>0)) {
                 breakerCharges[2]--;
                 play_sound(SOUND_GENERAL_BOWSER_KEY_LAND, gGlobalSoundSource);
                 radar_timer = 200;
             }
 
-            if ((gPlayer1Controller->buttonPressed & B_BUTTON)||exit_button()) {
+            if ((gPlayer1Controller->buttonPressed & B_BUTTON)||n64_mouse_camera_flick_state==1) {
                 fnab_office_state = OFFICE_STATE_LEAVE_CAMERA;
                 fnab_cam_index = 1;
                 fnab_office_statetimer = 0;
@@ -1387,6 +1432,7 @@ void fnab_loop(void) {
             }
             break;
         case OFFICE_STATE_BREAKER:
+            fnab_camera_flick_handler(300.0f);
             if (fnab_office_statetimer > 10) {
 
                 if (!breakerDoFix) {
@@ -1574,8 +1620,22 @@ s32 fnab_main_menu(void) {
                 }
             }
             break;
-        case 1: // CREDITS
         case 3: // EPILEPSY SCREEN
+            if (n64_mouse_enabled) {
+                if (mouse_click_button(20,10,100.f)==2) {
+                    n64_mouse_enabled = FALSE;
+                    main_menu_state = 0;
+                }
+                if (mouse_click_button(20,30,100.f)==2) {
+                    main_menu_state = 0;
+                }
+            } else {
+                if ((gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON|B_BUTTON))||exit_button()) {
+                    main_menu_state = 0;
+                }      
+            }
+            break;
+        case 1: // CREDITS
         case 5: // CHANGELOG
             if ((gPlayer1Controller->buttonPressed & (A_BUTTON|START_BUTTON|B_BUTTON))||exit_button()) {
                 main_menu_state = 0;
@@ -1700,16 +1760,30 @@ April Fools btw : )");
             break;
 
         case 3: // EPILEPSY WARNING
+            if (n64_mouse_enabled) {
+                print_text_fmt_int(20, 10, "USE CONTROLLER",0);
+                print_text_fmt_int(20, 30, "USE MOUSE",0);
+
             gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
             gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
             print_generic_string_ascii(25,200,"EPILEPSY WARNING!\n\
 \n\
 This Super Mario 64 ROM hack\n\
 contains flashing lights, loud sounds,\n\
+and jumpscares.");
+            gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+            } else {
+                gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
+                gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
+                print_generic_string_ascii(25,200,"EPILEPSY WARNING!\n\
+\n\
+This Super Mario 64 ROM hack\n\
+contains flashing lights, loud sounds,\n\
 and jumpscares.\n\
 \n\
 Press START to continue.");
-        gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+            gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
+            }
             break;
         case 4: //CUSTOM NIGHT
             gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);

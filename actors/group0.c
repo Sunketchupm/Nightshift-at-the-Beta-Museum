@@ -55,3 +55,5 @@
 #include "stanley/anims/table.inc.c"
 #include "cn/model.inc.c"
 #include "cne/model.inc.c"
+#include "cambtn/model.inc.c"
+#include "cambtn2/model.inc.c"

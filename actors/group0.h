@@ -373,4 +373,8 @@ extern const Gfx white_particle_small_unused_dl[];
 
 #include "cne/header.h"
 
+#include "cambtn/header.h"
+
+#include "cambtn2/header.h"
+
 #endif
