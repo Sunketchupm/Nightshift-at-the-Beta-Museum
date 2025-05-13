@@ -17,11 +17,11 @@
 #include "audio/external.h"
 #include "save_file.h"
 
-#define _ 0, // Wall / Nothing
-#define F 1, // Floor  
-#define V 2, // Vent
-#define W 3, // Visible from Window
-#define A 4, // Attack zone
+#define _ TILE_WALL, // Wall / Nothing
+#define F TILE_FLOOR, // Floor  
+#define V TILE_VENT, // Vent
+#define W TILE_WINDOW, // Visible from Window
+#define A TILE_ATTACK, // Attack zone
 
 u8 fnabMap[20][20] = {
 {F F F F _ F F F _ F F F _ _ _ _ _ _ _ _},
@@ -73,14 +73,14 @@ u8 get_map_data(s8 x, s8 y) {
     if ((x<MAP_SIZE&&x>=0)&&(y<MAP_SIZE&&y>=0)) {
         return pathfindingMap[y][x];
     }
-    return 0;
+    return TILE_WALL;
 }
 
 void add_path_branch(s8 x, s8 y, u8 allowVent) {
     u8 mapdata = get_map_data(x,y);
-    u8 cond = (mapdata > 0);
+    u8 cond = (mapdata > TILE_WALL);
     if (allowVent == FALSE) {
-        cond = ((mapdata > 0)&&(mapdata != 2));
+        cond = ((mapdata > TILE_WALL)&&(mapdata != TILE_VENT));
     }
 
     if (cond) {
@@ -475,7 +475,7 @@ void bhv_stanley_title(void) {
 void fnab_enemy_set_target(struct fnabEnemy * cfe) {
     //set new target based on state
     switch(cfe->state) {
-        case FNABE_WANDER:;
+        case FNABE_WANDER:
             u8 random_x;
             u8 random_y;
             u8 emergency_break = 0;
@@ -483,12 +483,12 @@ void fnab_enemy_set_target(struct fnabEnemy * cfe) {
                 random_x = cfe->x + 3 - random_u16()%6;
                 random_y = cfe->y + 3 -random_u16()%6;
                 emergency_break++;
-            } while (get_map_data(random_x,random_y)==0 && emergency_break < 10);
+            } while (get_map_data(random_x,random_y) == TILE_WALL && emergency_break < 10);
             cfe->tx = random_x;
             cfe->ty = random_y;
             break;
-        case FNABE_ATTACK:;
-            u8 attack_location_index = random_u16()%3;
+        case FNABE_ATTACK:
+            u8 attack_location_index = random_u16() % (cfe->canVent ? 3 : 2);
             cfe->attackLocation = cfe->info->choice[attack_location_index];
             switch(cfe->attackLocation) {
                 case FNABE_PRIMED_LEFT:
@@ -593,7 +593,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
             }
             if (steps > 0) {
                 camera_interference_timer = 6;
-                if (get_map_data(cfe->x,cfe->y) == 3) {
+                if (get_map_data(cfe->x,cfe->y) == TILE_ATTACK) {
                     steps = 1;
                     light_interference_timer = 10;
                 }
@@ -604,7 +604,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
             for (int i = 0; i < steps; i++) {
                 cfe->animFrameHold = random_u16();
 
-                u8 dir = path_find(cfe->tx,cfe->ty,cfe->x,cfe->y,cfe->info->canVent);
+                u8 dir = path_find(cfe->tx,cfe->ty,cfe->x,cfe->y,cfe->canVent);
                 modeldir = dir;
 
                 cfe->x -= dirOffset[dir][0];
@@ -627,7 +627,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
 
                 tile_landed = get_map_data(cfe->x,cfe->y);
 
-                if (tile_landed == 1) {
+                if (tile_landed == TILE_FLOOR) {
                     cfe->ventFlushX = cfe->x;
                     cfe->ventFlushY = cfe->y;
                 }
@@ -668,7 +668,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                     fnab_enemy_set_target(cfe);
                 }
 
-                if (tile_landed == 4 && cfe->x == cfe->tx && cfe->state == FNABE_ATTACK) {
+                if (tile_landed == TILE_ATTACK && cfe->x == cfe->tx && cfe->state == FNABE_ATTACK) {
                     cfe->state = cfe->attackLocation;
                     cfe->progress = 0.0f;
                 }
@@ -689,20 +689,20 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
             cfe->modelObj->oPosX = (200.0f*cfe->x)+100.0f;
             cfe->modelObj->oPosZ = (-200.0f*cfe->y)-100.0f+zoff;
             cfe->modelObj->oPosY = find_floor_height(cfe->modelObj->oPosX,500.0f,cfe->modelObj->oPosZ);
-            if (tile_landed >= 3) {
+            if (tile_landed >= TILE_WINDOW) {
                 cfe->modelObj->oFaceAngleYaw = obj_angle_to_object(cfe->modelObj,officePovCamera); //stare at the player
                 light_interference_timer = 10;
             }
             //set tile animation
             switch(tile_landed) {
-                case 1:
+                case TILE_FLOOR:
                     obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_NORMAL]);
                     break;
-                case 2:
+                case TILE_VENT:
                     obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_VENT]);
                     break;
-                case 3:
-                case 4:
+                case TILE_WINDOW:
+                case TILE_ATTACK:
                     obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_WINDOW]);
                     if (cfe->attackLocation == FNABE_PRIMED_VENT) {
                         obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_VENT]);
@@ -710,8 +710,12 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                     break;
             }
             //vent queue
-            if (start_tile == 1 && tile_landed == 2) {
+            if (start_tile == TILE_FLOOR && tile_landed == TILE_VENT) {
                 play_sound(SOUND_ACTION_METAL_STEP, gGlobalSoundSource);
+            }
+
+            if (++cfe->stepCounter > 5 && (cfe->info->canVent && !cfe->canVent)) {
+                cfe->canVent = TRUE;
             }
         }
     } else {
@@ -808,6 +812,7 @@ void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficu
     cfe->y = info->homeY;
     cfe->tx = info->homeX;
     cfe->ty = info->homeY;
+    cfe->stepCounter = 0;
 
     if (is_b3313_night()) {
         info = &stanleyInfo;
@@ -820,6 +825,7 @@ void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficu
     cfe->modelObj->oFaceAngleYaw = (info->homeDir*0x4000) + 0x8000;
     cfe->info = info;
     cfe->animFrameHold = random_u16();
+    cfe->canVent = cfe->info->canVent;
 
     wario_timer = 0.0f;
 }
@@ -1353,7 +1359,7 @@ void fnab_loop(void) {
             if (((gPlayer1Controller->buttonPressed & Z_TRIG)||(gPlayer2Controller->buttonPressed & B_BUTTON))&&(snd_timer==0)&&(breakerCharges[1]>0)) {
                 snd_x = -camera_mouse_x/10.0f;
                 snd_y = -camera_mouse_y/10.0f;
-                if (get_map_data(snd_x,snd_y)>0) {
+                if (get_map_data(snd_x,snd_y) > TILE_WALL) {
                     breakerCharges[1]--;
 
                     u16 rand_sound = random_u16()%3;
@@ -1402,8 +1408,10 @@ void fnab_loop(void) {
                     struct fnabEnemy * ce = &enemyList[i];
 
                     if (!ce->active) {continue;}
-                    if (get_map_data(ce->x,ce->y) == 2 || ce->state == FNABE_PRIMED_VENT) {
+                    if (get_map_data(ce->x,ce->y) == TILE_VENT || ce->state == FNABE_PRIMED_VENT) {
                         ce->state = FNABE_WANDER;
+                        ce->canVent = FALSE;
+                        ce->stepCounter = 0;
                         //ce->tx = ce->ventFlushX;
                         //ce->ty = ce->ventFlushY;
 

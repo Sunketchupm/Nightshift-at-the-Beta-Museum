@@ -47,6 +47,14 @@ enum personality {
     PERSONALITY_STANLEY
 };
 
+enum MapTile {
+    TILE_WALL = 0,
+    TILE_FLOOR = 1,
+    TILE_VENT = 2,
+    TILE_WINDOW = 3,
+    TILE_ATTACK = 4
+};
+
 struct enemyInfo {
     u8 homeX;
     u8 homeY;
@@ -77,8 +85,10 @@ struct fnabEnemy {
     u8 state;
     u8 attackLocation;
     u8 difficulty;//outta 20
-    f32 progress;
+    u8 canVent;
+    u16 stepCounter;
     u16 animFrameHold;
+    f32 progress;
     f32 jumpscareYoffset;
     struct Object * modelObj;
     struct enemyInfo * info;
