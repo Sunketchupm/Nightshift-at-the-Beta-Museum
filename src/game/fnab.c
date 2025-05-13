@@ -827,6 +827,9 @@ void print_breaker_status(u16 x, u16 y) {
     print_text_fmt_int(x, y, "DOORS", 0);
     print_text_fmt_int(x, y-20, "AUDIO", 0);
     print_text_fmt_int(x, y-40, "UTILITY", 0);
+    if (fnab_office_state == OFFICE_STATE_BREAKER) {
+        print_text_fmt_int(x, y-60, "REBOOT ALL", 0);
+    }
 
     for (int i = 0; i<3; i++) {
         for (int j = 0; j<breakerCharges[i]; j++) {
@@ -1135,7 +1138,7 @@ void fnab_render_2d(void) {
                 if (breakerFixing >= i) {
                     printChar = "^";
                 }
-                print_text_fmt_int(90+i*20, 80, printChar, 0);
+                print_text_fmt_int(90+i*20, 70, printChar, 0);
             }
         }
     }
@@ -1442,9 +1445,9 @@ void fnab_loop(void) {
             if (fnab_office_statetimer > 10) {
 
                 if (!breakerDoFix) {
-                    handle_menu_scrolling(MENU_SCROLL_VERTICAL, &breakerIndex, 0, 2);
+                    handle_menu_scrolling(MENU_SCROLL_VERTICAL, &breakerIndex, 0, 3);
 
-                    for (int i = 0; i < 3; i++) {
+                    for (int i = 0; i < 4; i++) {
                         if (mouse_click_button(90.f,150.0f-(i*20.f),100.f)) {
                             breakerIndex = i;
                         }
@@ -1543,11 +1546,20 @@ void fnab_loop(void) {
         vent_flush_timer --;
     }
     if (breakerDoFix == TRUE) {
-        breakerFixing += .015f;
+        breakerFixing += 0.0075f; // Rebooting all takes half speed
+        if (breakerIndex < 3) {
+            breakerFixing += 0.0075f;
+        }
         if (breakerFixing >= 7.f) {
             play_sound(SOUND_GENERAL_BOWSER_KEY_LAND, gGlobalSoundSource);
             breakerDoFix = FALSE;
-            breakerCharges[breakerIndex] = breakerChargesMax[breakerIndex];
+            if (breakerIndex == 3) {
+                for (u8 i = 0; i < 3; i++) {
+                    breakerCharges[i] = breakerChargesMax[i];
+                }
+            } else {
+                breakerCharges[breakerIndex] = breakerChargesMax[breakerIndex];
+            }
         }
     }
     fnab_clock++;
