@@ -825,6 +825,8 @@ void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficu
     cfe->modelObj->oFaceAngleYaw = (info->homeDir*0x4000) + 0x8000;
     cfe->info = info;
     cfe->animFrameHold = random_u16();
+
+    wario_timer = 0.0f;
 }
 
 void print_breaker_status(u16 x, u16 y) {
