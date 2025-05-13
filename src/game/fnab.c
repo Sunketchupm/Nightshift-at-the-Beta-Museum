@@ -354,13 +354,13 @@ void bhv_fnab_door(void) {
             o->oTimer = 0;
             break;
         case 1:
-            if (o->oTimer > 600) {
+            if (o->oTimer > 450) {
                 play_sound(SOUND_GENERAL_STAR_DOOR_OPEN, gGlobalSoundSource);
                 securityCameras[o->oBehParams2ndByte].doorStatus = 2;
             }
             break;
         case 2:
-            if (o->oTimer > 1800) {
+            if (o->oTimer > 1500) {
                 securityCameras[o->oBehParams2ndByte].doorStatus = 0;
             }
             break;
