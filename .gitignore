@@ -2071,3 +2071,7 @@ lib/libs2d_engine.a
 
 # user-specific config file
 include/config/config_local.h
+
+baserom.jp.n64
+textures/segment2/*
+.vscode/*
