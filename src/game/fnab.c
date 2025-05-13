@@ -183,9 +183,9 @@ struct enemyInfo motosInfo = {
     .canVent = FALSE,
     .modelBhv = bhvMotos,
     .modelId = MODEL_MOTOS,
-    .frequency = 0.02f,
+    .frequency = 0.015f,
     .tableAttackChance = .1f,
-    .maxSteps = 3,
+    .maxSteps = 4,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT},
 
@@ -205,9 +205,9 @@ struct enemyInfo bullyInfo = {
     .canVent = TRUE,
     .modelBhv = bhvBetaBully,
     .modelId = MODEL_BETABULLY,
-    .frequency = 0.03f,
+    .frequency = 0.02f,
     .tableAttackChance = .9f,
-    .maxSteps = 3,
+    .maxSteps = 4,
 
     .choice = {FNABE_PRIMED_VENT,FNABE_PRIMED_VENT,FNABE_PRIMED_RIGHT},
 
@@ -249,9 +249,9 @@ struct enemyInfo luigiInfo = {
     .canVent = TRUE,
     .modelBhv = bhvBetaLuigi,
     .modelId = MODEL_BETA_LUIGI,
-    .frequency = 0.02f,
+    .frequency = 0.015f,
     .tableAttackChance = .5f,
-    .maxSteps = 1,
+    .maxSteps = 2,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_VENT},
 
@@ -271,9 +271,9 @@ struct enemyInfo stanleyInfo = {
     .canVent = TRUE,
     .modelBhv = bhvStanley,
     .modelId = MODEL_STANLEY,
-    .frequency = 0.09f,
+    .frequency = 0.05f,
     .tableAttackChance = .55f,
-    .maxSteps = 1,
+    .maxSteps = 3,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_VENT},
 
