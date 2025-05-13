@@ -310,11 +310,11 @@ struct fnabEnemy enemyList[ENEMY_COUNT];
 
 #define SECURITY_CAMERA_CT 25
 struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
-    {.name = NULL}, // Office
-    {.name = NULL}, // Office
-    {.name = NULL}, // Office
-    {.name = NULL}, // Office
-    {.name = NULL}, // Office
+    {.name = NULL}, // Office (No action)
+    {.name = NULL}, // Office (Starting cameras)
+    {.name = NULL}, // Office (Starting hiding)
+    {.name = NULL}, // Office (Hiding)
+    {.name = NULL}, // Office (Breaker)
     {.name = "TRAMPOLINE EXHIBIT"},
     {.name = "HALL L"},
     {.name = "LAVA EXHIBIT"},
@@ -424,10 +424,10 @@ void bhv_fnab_camera(void) {
             o->oFaceAngleYaw += -gPlayer1Controller->rawStickX*7;
             if (n64_mouse_enabled && n64_mouse_camera_flick_state != 2) {
                 if (n64_mouse_x > 320.0f-80.0f) {
-                    o->oFaceAngleYaw -= 0x200;
+                    o->oFaceAngleYaw -= 0x250;
                 }
                 if (n64_mouse_x < 0.0f+80.0f) {
-                    o->oFaceAngleYaw += 0x200;
+                    o->oFaceAngleYaw += 0x250;
                 }
             }
         }
@@ -1123,7 +1123,7 @@ void fnab_render_2d(void) {
 
         gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
     }
-    if (fnab_office_state == OFFICE_STATE_BREAKER && fnab_office_statetimer > 10) {
+    if (fnab_office_state == OFFICE_STATE_BREAKER && fnab_office_statetimer > 7) {
         print_text_fmt_int(90, 150-breakerIndex*20, "^", 0);
         print_breaker_status(110,150);
 
@@ -1277,10 +1277,10 @@ void fnab_loop(void) {
             break;
         case OFFICE_STATE_HIDE:
             play_sound(SOUND_ENV_BOAT_ROCKING1, gGlobalSoundSource);
-            if (fnab_office_statetimer == 10) {
+            if (fnab_office_statetimer == 5) {
                 fnab_cam_index = 3;
             }
-            if (fnab_office_statetimer > 20) {
+            if (fnab_office_statetimer > 10) {
                 if (!(gPlayer1Controller->buttonDown & Z_TRIG)&&(n64_mouse_y > 30.0f)) {
                     fnab_office_state = OFFICE_STATE_UNHIDE;
                     fnab_cam_index = 2;
@@ -1289,7 +1289,7 @@ void fnab_loop(void) {
             }
             break;
         case OFFICE_STATE_UNHIDE:
-            if (fnab_office_statetimer > 10) {
+            if (fnab_office_statetimer > 5) {
                 fnab_office_statetimer = 0;
                 fnab_cam_index = 0;
                 fnab_office_state = OFFICE_STATE_DESK;
@@ -1298,7 +1298,7 @@ void fnab_loop(void) {
         case OFFICE_STATE_LEAN_CAMERA:
             play_sound(SOUND_ENV_WATERFALL1, gGlobalSoundSource);
             monitorScreenObject->header.gfx.sharedChild = gLoadedGraphNodes[MODEL_MON];
-            if (fnab_office_statetimer > 10) {
+            if (fnab_office_statetimer > 7) {
                 fnab_cam_snap_or_lerp = 0;
                 fnab_office_statetimer = 0;
                 fnab_cam_index = fnab_cam_last_index;
@@ -1435,7 +1435,7 @@ void fnab_loop(void) {
                 fnab_cam_snap_or_lerp = 1;
                 fnab_cam_index = 0;
             }
-            if (fnab_office_statetimer > 10) {
+            if (fnab_office_statetimer > 7) {
                 fnab_office_statetimer = 0;
                 fnab_cam_index = 0;
                 fnab_office_state = OFFICE_STATE_DESK;
@@ -1443,7 +1443,7 @@ void fnab_loop(void) {
             break;
         case OFFICE_STATE_BREAKER:
             fnab_camera_flick_handler(300.0f);
-            if (fnab_office_statetimer > 10) {
+            if (fnab_office_statetimer > 7) {
 
                 if (!breakerDoFix) {
                     handle_menu_scrolling(MENU_SCROLL_VERTICAL, &breakerIndex, 0, 3);
