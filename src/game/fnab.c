@@ -173,6 +173,9 @@ u8 fnab_night_id = 0;
 
 u8 fnab_call_played = FALSE;
 
+// Todo: Find some way to not need an external variable
+f32 wario_timer = 0.0f;
+
 struct enemyInfo motosInfo = {
     .homeX = 6,
     .homeY = 0,
@@ -543,21 +546,22 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
     //WARIO PERSONALITY
     if (cfe->info->personality == PERSONALITY_WARIO) {
         if (cfe->state == FNABE_IDLE) {
-            if (fnab_cam_index == 9 && camera_interference_timer == 0 && cfe->modelObj->oOpacity > 30) {
-                cfe->modelObj->oOpacity -= 3;
+            if (fnab_cam_index == 9 && camera_interference_timer == 0 && wario_timer > 30) {
+                wario_timer -= 3;
             }
-            if ((gGlobalTimer % 30 == 0) && cfe->modelObj->oOpacity > 200) {
+            if ((gGlobalTimer % 30 == 0) && wario_timer > 200) {
                 play_sound(SOUND_PEACH_THANK_YOU_MARIO, gGlobalSoundSource);
             }
             if (gGlobalTimer % 4 == 0) {
-                cfe->modelObj->oOpacity ++;
-                if (cfe->modelObj->oOpacity >= 255) {
-                    cfe->modelObj->oOpacity = 255;
+                wario_timer += 1.0f + ((f32)cfe->difficulty / 20.0f);
+                if (wario_timer >= 255) {
+                    wario_timer = 255;
                     cfe->state = FNABE_ATTACK;
                     fnab_enemy_set_target(&cfe);
                     play_sound(SOUND_PEACH_DEAR_MARIO, gGlobalSoundSource);
                 }
             }
+            cfe->modelObj->oOpacity = (s32)wario_timer;
         }
     }
     
