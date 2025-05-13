@@ -310,12 +310,11 @@ struct fnabEnemy enemyList[ENEMY_COUNT];
 
 #define SECURITY_CAMERA_CT 25
 struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
-    {.name = NULL},
-    {.name = NULL},
-    {.name = NULL},
-    {.name = NULL},
-    {.name = NULL},
-    // First 5 cameras are for office POV
+    {.name = NULL}, // Office
+    {.name = NULL}, // Office
+    {.name = NULL}, // Office
+    {.name = NULL}, // Office
+    {.name = NULL}, // Office
     {.name = "TRAMPOLINE EXHIBIT"},
     {.name = "HALL L"},
     {.name = "LAVA EXHIBIT"},
@@ -327,16 +326,12 @@ struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
     {.name = "SPACEWORLD CASTLE"},
     {.name = "CARTRIDGE ROOM"},
     {.name = "CLOSET"},
-
-    {.name = NULL},
-    {.name = NULL},
-    {.name = NULL},
-    {.name = NULL},
-
+    {.name = NULL}, // Door
+    {.name = NULL}, // Door
+    {.name = NULL}, // Door
+    {.name = NULL}, // Door
     {.name = "NORTH VENT"},
-
-    {.name = NULL},
-
+    {.name = NULL}, // Door
     {.name = "SOUTH VENT 2"},
 };
 

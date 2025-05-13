@@ -268,6 +268,8 @@ const LevelScript level_fnab_entry[] = {
 		OBJECT(MODEL_FNABDOOR, 100, 0, -1500, 0, 0, 0, (19 << 16), bhvFnabDoor),
 		OBJECT(MODEL_FNABDOOR, 2900, 0, -2300, 0, 0, 0, (1 << 24) | (21 << 16), bhvFnabDoor),
 		OBJECT(MODEL_FANBLADE, 2199, 80, -2408, 0, -45, 0, 0x00000000, bhvFanBlade),
+		// The negative Z direction goes towards the vent. About -2476 - 120 is where the vent is.
+		//OBJECT(MODEL_YELLOW_COIN, 2298, 50, -2476, 0, 0, 0, 0x0, bhvYellowCoin),
 		TERRAIN(fnab_area_1_collision),
 		MACRO_OBJECTS(fnab_area_1_macro_objs),
 		SET_BACKGROUND_MUSIC(0x00, SEQ_AMB),
