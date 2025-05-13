@@ -995,10 +995,10 @@ void fnab_render_2d(void) {
                         gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
                         break;
                     case 1:
-                        gDPSetEnvColor(gDisplayListHead++, 0, 255, 0, 255)
+                        gDPSetEnvColor(gDisplayListHead++, 0, 255, 0, 255);
                         break;
                     case 2:
-                        gDPSetEnvColor(gDisplayListHead++, 255, 0, 0, 255)
+                        gDPSetEnvColor(gDisplayListHead++, 255, 0, 0, 255);
                         break;
                 }
                 create_dl_translation_matrix(MENU_MTX_PUSH, securityCameras[i].x, securityCameras[i].y, 0);
