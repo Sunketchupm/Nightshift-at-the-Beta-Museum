@@ -1576,10 +1576,10 @@ u8 menu_a_hold_timer = 0;
 
 void fnab_custom_night_button_loop(int x, int y, u8 * difficulty_changer) {
      if (mouse_click_button(x-16,y,16.0f) == 2) {
-        (*difficulty_changer) = CLAMP((*difficulty_changer)-1,0,15);
+        (*difficulty_changer) = CLAMP((*difficulty_changer)-1,0,20);
      }
      if (mouse_click_button(x+16,y,16.0f) == 2) {
-        (*difficulty_changer) = CLAMP((*difficulty_changer)+1,0,15);
+        (*difficulty_changer) = CLAMP((*difficulty_changer)+1,0,20);
      }
 }
 
@@ -1718,7 +1718,7 @@ s32 fnab_main_menu(void) {
             }
 
             if (menu_a_hold_timer > 15 || (gPlayer1Controller->buttonPressed & A_BUTTON)) {
-                if (nightEnemyDifficulty[NIGHT_CUSTOM][main_menu_index] < 15) {
+                if (nightEnemyDifficulty[NIGHT_CUSTOM][main_menu_index] < 20) {
                     nightEnemyDifficulty[NIGHT_CUSTOM][main_menu_index] ++;
                 }
             }
