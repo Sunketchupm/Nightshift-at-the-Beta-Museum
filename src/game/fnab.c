@@ -1483,7 +1483,10 @@ void fnab_loop(void) {
                 fnab_cam_snap_or_lerp = 1;
                 officePovCamera->oFaceAngleYaw = 0;
             }
-            if (fnab_office_statetimer == 2) {
+            if (fnab_office_statetimer > 30) {
+                play_sound(SOUND_ENV_WATERFALL1, gGlobalSoundSource);
+            }
+            if (fnab_office_statetimer == 120) {
                 if (fnab_night_id == NIGHT_CUSTOM) {
                     gSaveBuffer.files[0]->customHi = old_custom_night_highscore;
                 }
@@ -1495,12 +1498,6 @@ void fnab_loop(void) {
                         save_file_do_save(gCurrSaveFileNum - 1);
                     }
                 }
-            }
-            if (fnab_office_statetimer > 30) {
-                play_sound(SOUND_ENV_WATERFALL1, gGlobalSoundSource);
-            }
-            if (fnab_office_statetimer == 120) {
-
                 fade_into_special_warp(WARP_SPECIAL_MARIO_HEAD_REGULAR, 0); // reset game
             }
             break;
