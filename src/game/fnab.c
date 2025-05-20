@@ -17,6 +17,11 @@
 #include "audio/external.h"
 #include "save_file.h"
 
+extern void print_text_fmt_int(s32 x, s32 y, const char *str, s32 n);
+extern void print_text(s32 x, s32 y, const char *str);
+
+u8 activateMessage[10];
+
 #define _ TILE_WALL, // Wall / Nothing
 #define F TILE_FLOOR, // Floor  
 #define V TILE_VENT, // Vent
@@ -129,6 +134,13 @@ u8 path_find(s8 xs, s8 ys, s8 xd, s8 yd, u8 allowVent) {
     return MAPDIR_NO_PATH;
 }
 
+void render_camera_static(u8 alpha) {
+    gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, alpha);
+    create_dl_translation_matrix(MENU_MTX_PUSH, 160, 120, 0);
+    gSPDisplayList(gDisplayListHead++, staticscreen_ss_mesh);
+    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+}
+
 Vec3f fnabCameraPos;
 Vec3f fnabCameraFoc;
 struct Object * officePovCamera = NULL;
@@ -144,6 +156,7 @@ int fnab_office_statetimer = 0;
 
 u8 camera_interference_timer = 0;
 u8 light_interference_timer = 0;
+u8 force_static_timer = 0;
 
 f32 camera_mouse_x = 0.0f;
 f32 camera_mouse_y = 0.0f;
@@ -184,7 +197,7 @@ struct enemyInfo motosInfo = {
     .modelBhv = bhvMotos,
     .modelId = MODEL_MOTOS,
     .frequency = 0.015f,
-    .tableAttackChance = .1f,
+    .tableAttackType = ENEMY_MOTOS,
     .maxSteps = 4,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT},
@@ -206,7 +219,7 @@ struct enemyInfo bullyInfo = {
     .modelBhv = bhvBetaBully,
     .modelId = MODEL_BETABULLY,
     .frequency = 0.02f,
-    .tableAttackChance = .9f,
+    .tableAttackType = ENEMY_BULLY,
     .maxSteps = 4,
 
     .choice = {FNABE_PRIMED_VENT,FNABE_PRIMED_VENT,FNABE_PRIMED_RIGHT},
@@ -228,7 +241,7 @@ struct enemyInfo warioInfo = {
     .modelBhv = bhvWarioApp,
     .modelId = MODEL_WARIOAPP,
     .frequency = 0.1f,
-    .tableAttackChance = 1.0f,
+    .tableAttackType = ENEMY_WARIO,
     .maxSteps = 4,
 
     .choice = {FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT},
@@ -250,7 +263,7 @@ struct enemyInfo luigiInfo = {
     .modelBhv = bhvBetaLuigi,
     .modelId = MODEL_BETA_LUIGI,
     .frequency = 0.015f,
-    .tableAttackChance = .5f,
+    .tableAttackType = ENEMY_LUIGI,
     .maxSteps = 2,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_VENT},
@@ -272,7 +285,7 @@ struct enemyInfo stanleyInfo = {
     .modelBhv = bhvStanley,
     .modelId = MODEL_STANLEY,
     .frequency = 0.05f,
-    .tableAttackChance = .55f,
+    .tableAttackType = ENEMY_STANLEY,
     .maxSteps = 3,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_VENT},
@@ -472,7 +485,7 @@ void bhv_stanley_title(void) {
     }
 }
 
-void fnab_enemy_set_target(struct fnabEnemy * cfe) {
+void fnab_enemy_set_target(struct fnabEnemy* cfe) {
     //set new target based on state
     switch(cfe->state) {
         case FNABE_WANDER:
@@ -512,7 +525,82 @@ void fnab_enemy_set_target(struct fnabEnemy * cfe) {
     }
 }
 
-void fnab_enemy_step(struct fnabEnemy * cfe) {
+void fnab_enemy_successful_defense(struct fnabEnemy* cfe) {
+    cfe->x = cfe->info->homeX;
+    cfe->y = cfe->info->homeY;
+    cfe->state = FNABE_WANDER;
+    cfe->progress = 0;
+    cfe->stepCounter = 0;
+    cfe->tableAttackState = 0;
+    cfe->forceJumpscare = FALSE;
+    cfe->tableKillTimer = 0;
+    force_static_timer = 10;
+    light_interference_timer = 30;
+    fnab_office_state = OFFICE_STATE_HIDE;
+}
+
+u8 fnab_enemy_table_attack(struct fnabEnemy* cfe) {
+    switch (cfe->info->tableAttackType) {
+        case ENEMY_MOTOS: // The moto originally had a 10% chance to kill so here they will never kill
+            return FALSE;
+            break;
+        case ENEMY_BULLY: // The bully originally had a 90% chance to kill so here they will always kill
+            return TRUE;
+            break;
+        case ENEMY_WARIO: // Wario always killed
+            return TRUE;
+            break;
+        case ENEMY_LUIGI: // ?
+            return TRUE;
+            break;
+        case ENEMY_STANLEY:
+            //print_text(n64_mouse_x, n64_mouse_y, "0");
+            //print_text_fmt_int(10, 20, "%d", n64_mouse_x);
+            //print_text_fmt_int(10, 0, "%d", n64_mouse_y);
+            if (cfe->stepCounter == 0) {
+                cfe->stepCounter = (60 - (2.5f * cfe->difficulty)) + (random_u16() % (30 - cfe->difficulty));
+                u8 oldState = cfe->tableAttackState;
+                do {
+                    cfe->tableAttackState = random_u16() % 3;
+                } while (cfe->tableAttackState == oldState);
+                // Move stanley to the position
+            }
+
+            #define TABLE_ATTACK_STATE(id, minX, maxX, minY, maxY, direction, anti_direction) \
+                case id: \
+                    if (((gPlayer1Controller->buttonDown & direction) && !(gPlayer1Controller->buttonDown & anti_direction)) || (n64_mouse_x > minX && n64_mouse_x < maxX && n64_mouse_y > minY && n64_mouse_y < maxY)) { \
+                        cfe->stepCounter--; \
+                        if (cfe->tableKillTimer > 0) {\
+                            cfe->tableKillTimer--; \
+                        } \
+                    } else { \
+                        if (cfe->tableKillTimer < 255) { \
+                            cfe->tableKillTimer += 2; \
+                        } \
+                    } \
+                    print_text_fmt_int((minX + maxX) * 0.5, (minY + maxY) * 0.5, "%d", cfe->tableAttackState); \
+                    break;
+            switch (cfe->tableAttackState) {
+                TABLE_ATTACK_STATE(0, 120, 190, 125, 195, U_CBUTTONS, (R_CBUTTONS | L_CBUTTONS));
+                TABLE_ATTACK_STATE(1, 225, 290, 20, 130, R_CBUTTONS, (U_CBUTTONS | L_CBUTTONS));
+                TABLE_ATTACK_STATE(2, 30, 100, 105, 175, L_CBUTTONS, (U_CBUTTONS | R_CBUTTONS));
+            }
+            //print_text_fmt_int(60, 30, "%d", cfe->tableKillTimer);
+            #undef TABLE_ATTACK_STATE
+
+            if (cfe->progress >= 3 + (0.2f * cfe->difficulty)) {
+                fnab_enemy_successful_defense(cfe);
+            } else if (cfe->tableKillTimer >= (150 - (2 * cfe->difficulty))) {
+                return TRUE;
+            }
+            break;
+        default:
+            return FALSE;
+    }
+    return FALSE;
+}
+
+void fnab_enemy_step(struct fnabEnemy* cfe) {
     if (!cfe->active) {return;}
 
     //JUMPSCARE BEHAVIOR
@@ -552,7 +640,7 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                 if (wario_timer >= 255) {
                     wario_timer = 255;
                     cfe->state = FNABE_ATTACK;
-                    fnab_enemy_set_target(&cfe);
+                    fnab_enemy_set_target(cfe);
                     play_sound(SOUND_PEACH_DEAR_MARIO, gGlobalSoundSource);
                 }
             }
@@ -567,9 +655,8 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                 //do nothing
             } else {
                 cfe->state = FNABE_WANDER;
-                fnab_enemy_set_target(&cfe);
+                fnab_enemy_set_target(cfe);
             }
-
         }
     }
 
@@ -599,8 +686,6 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                 }
             }
 
-            s8 oldx = cfe->x;
-            s8 oldy = cfe->y;
             for (int i = 0; i < steps; i++) {
                 cfe->animFrameHold = random_u16();
 
@@ -720,8 +805,16 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
         }
     } else {
         // About to attack
-        if (cfe->progress > 5.0f) { //waittime til kill
-
+        if (cfe->state != FNABE_TABLE_ATTACK && fnab_office_state == OFFICE_STATE_HIDE && fnab_cam_index == 3) {
+            cfe->state = FNABE_TABLE_ATTACK;
+            cfe->tableAttackState = 0;
+            cfe->stepCounter = 0;
+            cfe->progress = 0;
+            cfe->tableKillTimer = 0;
+            fnab_office_state = OFFICE_STATE_TABLE_ATTACK;
+        } else if (cfe->state == FNABE_TABLE_ATTACK && !cfe->forceJumpscare) {
+            cfe->forceJumpscare = fnab_enemy_table_attack(cfe);
+        } else if (cfe->progress > 5.0f || cfe->forceJumpscare) { //waittime til kill
             u8 canjumpscare = TRUE;
             switch(cfe->attackLocation) {
                 case FNABE_PRIMED_LEFT:
@@ -755,26 +848,15 @@ void fnab_enemy_step(struct fnabEnemy * cfe) {
                         canjumpscare = TRUE;
                         //stanley can bypass being stared at
                     }
-                } else {
-                    f32 saving_roll = random_float();
-                    if (saving_roll > cfe->info->tableAttackChance) {
-                        cfe->x = cfe->info->homeX;
-                        cfe->y = cfe->info->homeY;
-                        cfe->state = FNABE_WANDER;
-                        cfe->progress = 1.0f;
-                        light_interference_timer = 10;
-                        canjumpscare = FALSE;
-                    } else {
-                        canjumpscare = TRUE;
-                    }
                 }
             }
             if (fnab_office_state == OFFICE_STATE_JUMPSCARED || fnab_office_state == OFFICE_STATE_WON) {
                 //prevent double jumpscaring, or interrputing a well deserved win
                 canjumpscare = FALSE;
+                cfe->forceJumpscare = FALSE;
             }
 
-            if (canjumpscare) {
+            if (canjumpscare || cfe->forceJumpscare) {
                 if (fnab_office_state == OFFICE_STATE_CAMERA) {
                     fnab_cam_snap_or_lerp = 0;
                     fnab_cam_index = 1;
@@ -813,6 +895,9 @@ void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficu
     cfe->tx = info->homeX;
     cfe->ty = info->homeY;
     cfe->stepCounter = 0;
+    cfe->tableKillTimer = 0;
+    cfe->tableAttackState = 0;
+    cfe->forceJumpscare = FALSE;
 
     if (is_b3313_night()) {
         info = &stanleyInfo;
@@ -938,18 +1023,12 @@ void exit_render(void) {
     }
 }
 
-
 void fnab_render_2d(void) {
     gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
 
     //WIN RENDER
     if (fnab_office_state == OFFICE_STATE_WON) {
-        //render camera static
-        gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
-        create_dl_translation_matrix(MENU_MTX_PUSH, 160, 120, 0);
-        gSPDisplayList(gDisplayListHead++, staticscreen_ss_mesh);
-        gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
-
+        render_camera_static(255);
         print_text_fmt_int(100, 110, "NIGHT COMPLETE", 0);
 
         return;
@@ -957,12 +1036,7 @@ void fnab_render_2d(void) {
 
     //GAME OVER RENDER
     if (fnab_office_state == OFFICE_STATE_JUMPSCARED && fnab_office_statetimer > 30) {
-        //render camera static
-        gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
-        create_dl_translation_matrix(MENU_MTX_PUSH, 160, 120, 0);
-        gSPDisplayList(gDisplayListHead++, staticscreen_ss_mesh);
-        gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
-
+        render_camera_static(255);
         if (fnab_office_statetimer > 60) {
             print_text_fmt_int(110, 110, "GAME OVER", 0);
         }
@@ -975,12 +1049,7 @@ void fnab_render_2d(void) {
         if (camera_interference_timer > 0 || cartridgeTilt == TRUE) {
             static_alpha = 255;
         }
-
-        //render camera static
-        gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, static_alpha);
-        create_dl_translation_matrix(MENU_MTX_PUSH, 160, 120, 0);
-        gSPDisplayList(gDisplayListHead++, staticscreen_ss_mesh);
-        gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+        render_camera_static(static_alpha);
 
         create_dl_translation_matrix(MENU_MTX_PUSH, 200, 175, 0);
         gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
@@ -1150,6 +1219,11 @@ void fnab_render_2d(void) {
         }
     }
 
+    if (force_static_timer > 0) {
+        render_camera_static(255);
+        force_static_timer--;
+    }
+
     //fnab_mouse_render();
 }
 
@@ -1259,13 +1333,13 @@ void fnab_loop(void) {
                 fnab_camera_flick_handler(0.0f);
             }
 
-            if ((gPlayer1Controller->buttonDown & Z_TRIG)||(n64_mouse_y < 30.0f)) {
+            if ((gPlayer1Controller->buttonDown & Z_TRIG) || (n64_mouse_y < 30.0f)) {
                 fnab_cam_index = 2;
                 fnab_office_statetimer = 0;
                 fnab_office_state = OFFICE_STATE_HIDE;
             }
 
-            if ((gPlayer1Controller->buttonPressed & A_BUTTON)||n64_mouse_camera_flick_state==1) {
+            if ((gPlayer1Controller->buttonPressed & A_BUTTON) || n64_mouse_camera_flick_state==1) {
                 switch(fnab_office_action) {
                     case OACTION_CAMERA:
                         fnab_cam_index = 1;
@@ -1287,7 +1361,7 @@ void fnab_loop(void) {
                 fnab_cam_index = 3;
             }
             if (fnab_office_statetimer > 10) {
-                if (!(gPlayer1Controller->buttonDown & Z_TRIG)&&(n64_mouse_y > 30.0f)) {
+                if (!(gPlayer1Controller->buttonDown & Z_TRIG) && (n64_mouse_y > 30.0f)) {
                     fnab_office_state = OFFICE_STATE_UNHIDE;
                     fnab_cam_index = 2;
                     fnab_office_statetimer = 0;
@@ -1418,7 +1492,7 @@ void fnab_loop(void) {
                         ce->x = ce->ventFlushX;
                         ce->y = ce->ventFlushY;
 
-                        fnab_enemy_set_target(&ce);
+                        fnab_enemy_set_target(ce);
                     }
                 }
             }
@@ -1764,11 +1838,7 @@ void fnab_main_menu_render(void) {
 
     //render camera static
     gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
-
-    gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 20);
-    create_dl_translation_matrix(MENU_MTX_PUSH, 160, 120, 0);
-    gSPDisplayList(gDisplayListHead++, staticscreen_ss_mesh);
-    gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
+    render_camera_static(20);
 
     switch(main_menu_state) {
         case 0:
@@ -1890,8 +1960,8 @@ Press START to continue.");
             }
 
             if (!n64_mouse_enabled) {
-                int x;
-                int y;
+                int x = 0;
+                int y = 0;
                 switch(main_menu_index) {
                     case ENEMY_MOTOS:
                         x = 80;

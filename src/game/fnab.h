@@ -20,6 +20,7 @@ enum fnabEnemyState {
     FNABE_PRIMED_LEFT,
     FNABE_PRIMED_RIGHT,
     FNABE_PRIMED_VENT,
+    FNABE_TABLE_ATTACK,
 
     FNABE_JUMPSCARE
 };
@@ -61,10 +62,10 @@ struct enemyInfo {
     u8 homeDir;
     u8 canVent;
     u8 maxSteps;
-    BehaviorScript * modelBhv;
+    const BehaviorScript* modelBhv;
     u16 modelId;
     f32 frequency;
-    f32 tableAttackChance;
+    enum fnabEnemyId tableAttackType;
 
     u8 choice[3];
     u8 anim[4];
@@ -90,6 +91,9 @@ struct fnabEnemy {
     u16 animFrameHold;
     f32 progress;
     f32 jumpscareYoffset;
+    u8 tableAttackState;
+    u8 forceJumpscare;
+    u16 tableKillTimer;
     struct Object * modelObj;
     struct enemyInfo * info;
 };
@@ -124,6 +128,7 @@ enum officeState {
     OFFICE_STATE_CAMERA,
     OFFICE_STATE_LEAVE_CAMERA,
     OFFICE_STATE_BREAKER,
+    OFFICE_STATE_TABLE_ATTACK,
     OFFICE_STATE_JUMPSCARED,
     OFFICE_STATE_WON
 };
