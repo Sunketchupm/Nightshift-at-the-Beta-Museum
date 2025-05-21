@@ -168,6 +168,8 @@ u8 n64_mouse_camera_flick_state = 0;
 f32 n64_mouse_x = 160.0f;
 f32 n64_mouse_y = 120.0f;
 
+#define IF_N64_MOUSE_ENABLED(is, isNot) (n64_mouse_enabled ? (is) : (isNot))
+
 u8 snd_x = -1;
 u8 snd_y = -1;
 u8 snd_timer = 0;
@@ -497,8 +499,10 @@ void fnab_enemy_set_target(struct fnabEnemy* cfe) {
                 random_y = cfe->y + 3 -random_u16()%6;
                 emergency_break++;
             } while (get_map_data(random_x,random_y) == TILE_WALL && emergency_break < 10);
-            cfe->tx = random_x;
-            cfe->ty = random_y;
+            if (emergency_break < 10) {
+                cfe->tx = random_x;
+                cfe->ty = random_y;
+            }
             break;
         case FNABE_ATTACK:
             u8 attack_location_index = random_u16() % (cfe->canVent ? 3 : 2);
@@ -529,14 +533,16 @@ void fnab_enemy_successful_defense(struct fnabEnemy* cfe) {
     cfe->x = cfe->info->homeX;
     cfe->y = cfe->info->homeY;
     cfe->state = FNABE_WANDER;
-    cfe->progress = 0;
+    cfe->progress = 1.0f;
     cfe->stepCounter = 0;
     cfe->tableAttackState = 0;
     cfe->forceJumpscare = FALSE;
     cfe->tableKillTimer = 0;
+    cfe->tableAttackCount++;
     force_static_timer = 10;
-    light_interference_timer = 30;
+    light_interference_timer = 10;
     fnab_office_state = OFFICE_STATE_HIDE;
+    obj_scale(cfe->modelObj, 1.0f);
 }
 
 u8 fnab_enemy_table_attack(struct fnabEnemy* cfe) {
@@ -557,18 +563,40 @@ u8 fnab_enemy_table_attack(struct fnabEnemy* cfe) {
             //print_text(n64_mouse_x, n64_mouse_y, "0");
             //print_text_fmt_int(10, 20, "%d", n64_mouse_x);
             //print_text_fmt_int(10, 0, "%d", n64_mouse_y);
+            obj_scale(cfe->modelObj, 0.25f);
+            cfe->animFrameHold = random_u16() % 8;
             if (cfe->stepCounter == 0) {
-                cfe->stepCounter = (60 - (2.5f * cfe->difficulty)) + (random_u16() % (30 - cfe->difficulty));
+                cfe->stepCounter = MAX(((u16)(60 - (2.5f * cfe->difficulty)) +
+                                        (random_u16() % (30 - cfe->difficulty)))
+                                        - (3 * cfe->tableAttackCount), 5);
                 u8 oldState = cfe->tableAttackState;
                 do {
                     cfe->tableAttackState = random_u16() % 3;
                 } while (cfe->tableAttackState == oldState);
                 // Move stanley to the position
+                obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_NORMAL]);
+                #define TABLE_POS_STATE(id, x, y, z, pitch, yaw, roll) \
+                    case id: \
+                        cfe->modelObj->oPosX = x; \
+                        cfe->modelObj->oPosY = y; \
+                        cfe->modelObj->oPosZ = z; \
+                        cfe->modelObj->oFaceAnglePitch = pitch; \
+                        cfe->modelObj->oFaceAngleYaw = yaw; \
+                        cfe->modelObj->oFaceAngleRoll = roll; \
+                        break;
+                switch (cfe->tableAttackState) {
+                    TABLE_POS_STATE(0, 2314, 95, -2450, 32767, 32767, 0);
+                    TABLE_POS_STATE(1, 2396, 15, -2450, 0, 0, 18000);
+                    TABLE_POS_STATE(2, 2230, 62, -2450, 0, 0, -21746);
+                }
+                #undef TABLE_POS_STATE
             }
 
             #define TABLE_ATTACK_STATE(id, minX, maxX, minY, maxY, direction, anti_direction) \
                 case id: \
-                    if (((gPlayer1Controller->buttonDown & direction) && !(gPlayer1Controller->buttonDown & anti_direction)) || (n64_mouse_x > minX && n64_mouse_x < maxX && n64_mouse_y > minY && n64_mouse_y < maxY)) { \
+                    if ((!n64_mouse_enabled && (gPlayer1Controller->buttonDown & direction) && !(gPlayer1Controller->buttonDown & anti_direction)) \
+                        || (n64_mouse_x > minX && n64_mouse_x < maxX && n64_mouse_y > minY && n64_mouse_y < maxY)) { \
+\
                         cfe->stepCounter--; \
                         if (cfe->tableKillTimer > 0) {\
                             cfe->tableKillTimer--; \
@@ -578,7 +606,7 @@ u8 fnab_enemy_table_attack(struct fnabEnemy* cfe) {
                             cfe->tableKillTimer += 2; \
                         } \
                     } \
-                    print_text_fmt_int((minX + maxX) * 0.5, (minY + maxY) * 0.5, "%d", cfe->tableAttackState); \
+                    /* print_text_fmt_int((minX + maxX) * 0.5, (minY + maxY) * 0.5, "%d", cfe->tableAttackState); */ \
                     break;
             switch (cfe->tableAttackState) {
                 TABLE_ATTACK_STATE(0, 120, 190, 125, 195, U_CBUTTONS, (R_CBUTTONS | L_CBUTTONS));
@@ -590,7 +618,8 @@ u8 fnab_enemy_table_attack(struct fnabEnemy* cfe) {
 
             if (cfe->progress >= 3 + (0.2f * cfe->difficulty)) {
                 fnab_enemy_successful_defense(cfe);
-            } else if (cfe->tableKillTimer >= (150 - (2 * cfe->difficulty))) {
+            } else if (cfe->tableKillTimer >= (150 - (2 * cfe->difficulty) - (5 * cfe->tableAttackCount))) {
+                //print_text(60, 50, "Failed");
                 return TRUE;
             }
             break;
@@ -619,7 +648,9 @@ void fnab_enemy_step(struct fnabEnemy* cfe) {
         }
         //play_sound(SOUND_OBJ2_SMALL_BULLY_ATTACKED, gGlobalSoundSource);
 
+        cfe->modelObj->oFaceAnglePitch;
         cfe->modelObj->oFaceAngleYaw = obj_angle_to_object(cfe->modelObj,officePovCamera);
+        cfe->modelObj->oFaceAngleRoll = 0;
         obj_scale(cfe->modelObj,cfe->info->jumpscareScale);
         cfe->modelObj->header.gfx.animInfo.animFrame+=2;
         cfe->jumpscareYoffset *= .7f;
@@ -674,7 +705,7 @@ void fnab_enemy_step(struct fnabEnemy* cfe) {
 
             u8 tile_landed = 0;
             u8 start_tile = 0;
-            u16 steps = 1+(random_u16()%cfe->info->maxSteps);
+            u16 steps = cfe->info->maxSteps; //1+(random_u16()%cfe->info->maxSteps);
             if (cfe->state == FNABE_IDLE || (random_u16()%20)+1>cfe->difficulty) {
                 steps = 0;
             }
@@ -721,7 +752,7 @@ void fnab_enemy_step(struct fnabEnemy* cfe) {
                 if (dir >= MAPDIR_NO_PATH) {
                     switch(cfe->state) {
                         case FNABE_WANDER:
-                            if (random_u16()%3==0) {
+                            if (TRUE || random_u16()%3==0) {
                                 //1/3 chance to start attacking
                                 cfe->state = FNABE_ATTACK;
                             }
@@ -898,6 +929,7 @@ void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficu
     cfe->tableKillTimer = 0;
     cfe->tableAttackState = 0;
     cfe->forceJumpscare = FALSE;
+    cfe->tableAttackCount = 0;
 
     if (is_b3313_night()) {
         info = &stanleyInfo;
@@ -1671,7 +1703,7 @@ void fnab_custom_night_button_loop(int x, int y, u8 * difficulty_changer) {
         (*difficulty_changer) = CLAMP((*difficulty_changer)-1,0,20);
      }
      if (mouse_click_button(x+16,y,16.0f) == 2) {
-        (*difficulty_changer) = CLAMP((*difficulty_changer)+1,0,20);
+        (*difficulty_changer) = CLAMP((*difficulty_changer)+1,20,20);
      }
 }
 

@@ -94,6 +94,7 @@ struct fnabEnemy {
     u8 tableAttackState;
     u8 forceJumpscare;
     u16 tableKillTimer;
+    u8 tableAttackCount;
     struct Object * modelObj;
     struct enemyInfo * info;
 };
