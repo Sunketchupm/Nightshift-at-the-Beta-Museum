@@ -198,9 +198,9 @@ struct enemyInfo motosInfo = {
     .canVent = FALSE,
     .modelBhv = bhvMotos,
     .modelId = MODEL_MOTOS,
-    .frequency = 0.015f,
+    .frequency = 0.02f,
     .tableAttackType = ENEMY_MOTOS,
-    .maxSteps = 4,
+    .maxSteps = 3,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT},
 
@@ -220,9 +220,9 @@ struct enemyInfo bullyInfo = {
     .canVent = TRUE,
     .modelBhv = bhvBetaBully,
     .modelId = MODEL_BETABULLY,
-    .frequency = 0.02f,
+    .frequency = 0.03f,
     .tableAttackType = ENEMY_BULLY,
-    .maxSteps = 4,
+    .maxSteps = 3,
 
     .choice = {FNABE_PRIMED_VENT,FNABE_PRIMED_VENT,FNABE_PRIMED_RIGHT},
 
@@ -286,9 +286,9 @@ struct enemyInfo stanleyInfo = {
     .canVent = TRUE,
     .modelBhv = bhvStanley,
     .modelId = MODEL_STANLEY,
-    .frequency = 0.05f,
+    .frequency = 0.09f,
     .tableAttackType = ENEMY_STANLEY,
-    .maxSteps = 3,
+    .maxSteps = 1,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_VENT},
 
@@ -692,7 +692,7 @@ void fnab_enemy_step(struct fnabEnemy* cfe) {
     }
 
     //PER FRAME PROGRESS
-    cfe->progress += cfe->info->frequency*.7f; //make game slower by 70% og so the player has more time to actually strategize
+    cfe->progress += cfe->info->frequency * .7f; //make game slower by 70% og so the player has more time to actually strategize
     if (cfe->state == FNABE_FLUSHED) {
         cfe->progress += cfe->info->frequency*5.0f;
     }
