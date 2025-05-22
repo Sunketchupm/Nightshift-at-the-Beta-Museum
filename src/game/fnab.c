@@ -343,9 +343,9 @@ struct enemyInfo luigiInfo = {
     .canVent = TRUE,
     .modelBhv = bhvBetaLuigi,
     .modelId = MODEL_BETA_LUIGI,
-    .frequency = 0.015f,
+    .frequency = 0.01f,
     .tableAttackType = ENEMY_LUIGI,
-    .maxSteps = 2,
+    .maxSteps = 1,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_VENT},
 
@@ -774,7 +774,12 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
     }
 
     //PER FRAME PROGRESS
-    cfe->progress += cfe->info->frequency * .7f; //make game slower by 70% og so the player has more time to actually strategize
+    if (cfe->info->personality == PERSONALITY_LUIGI && is_seen_on_camera(cfe)) {
+        // don't move
+    } else {
+        cfe->progress += cfe->info->frequency * .7f; //make game slower by 70% og so the player has more time to actually strategize
+    }
+
     if (cfe->state == FNABE_FLUSHED) {
         cfe->progress += cfe->info->frequency*5.0f;
     }
@@ -840,7 +845,7 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
                                 //1/3 chance to start attacking
                                 cfe->state = FNABE_ATTACK;
                             }
-                            if (cfe->info->personality == PERSONALITY_LUIGI && cartridgeTilt == FALSE) {
+                            if (cfe->info->personality == PERSONALITY_LUIGI && !cartridgeTilt) {
                                 cfe->state = FNABE_CART_ATTACK;
                             }
                             break;
@@ -854,12 +859,15 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
                             cfe->state = FNABE_WANDER;
                             break;
                         case FNABE_CART_ATTACK:
-                            cfe->state = FNABE_WANDER;
+                            //cfe->state = FNABE_WANDER;
                             if (dir == MAPDIR_ARRIVED) {
                                 cartridgeTilt = TRUE;
                                 breakerFixing = FALSE;
                                 for (int i = 0; i<3; i++) {
                                     breakerCharges[i] = 0;
+                                }
+                                if (cartridgeTilt) {
+                                    cfe->state = FNABE_ATTACK;
                                 }
                             }
                             break;
@@ -1572,7 +1580,7 @@ void fnab_loop(void) {
                         struct FnabEnemy * ce = &enemyList[i];
 
                         if (!ce->active) {continue;}
-                        if (ce->state == FNABE_IDLE) {continue;}
+                        if (ce->state == FNABE_IDLE || ce->info->personality == PERSONALITY_LUIGI) {continue;}
 
                         f32 xdif = snd_x - ce->x;
                         f32 ydif = snd_y - ce->y;
@@ -1760,6 +1768,14 @@ void fnab_loop(void) {
             }
         }
     }
+
+    if (cartridgeTilt) {
+        for (u8 i = 0; i < 3; i++) {
+            breakerCharges[i] = 0;
+        }
+        breakerFixing = FALSE;
+    }
+
     fnab_clock++;
     //fnab_clock += 1800;
     if (fnab_night_id != NIGHT_ENDLESS) {
