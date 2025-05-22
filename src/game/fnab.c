@@ -890,6 +890,12 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
                     cfe->progress = 0.0f;
                 }
             }
+
+            // Also static on tile arrival
+            if (is_seen_on_camera(cfe) && cfe->info->personality != PERSONALITY_WARIO) {
+                camera_interference_timer = 6;
+            }
+
             bcopy(&fnabMap,&pathfindingMap,MAP_SIZE*MAP_SIZE);
             //UPDATE MODEL
             f32 zoff = 0.0f;
