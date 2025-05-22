@@ -344,7 +344,7 @@ struct enemyInfo luigiInfo = {
     .canVent = TRUE,
     .modelBhv = bhvBetaLuigi,
     .modelId = MODEL_BETA_LUIGI,
-    .frequency = 0.01f,
+    .frequency = 0.006f,
     .tableAttackType = ENEMY_LUIGI,
     .maxSteps = 1,
 
@@ -757,7 +757,7 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
                 play_sound(SOUND_PEACH_THANK_YOU_MARIO, gGlobalSoundSource);
             }
             if (gGlobalTimer % 4 == 0) {
-                wario_timer += 1.0f + ((f32)cfe->difficulty / 20.0f);
+                wario_timer += 1.0f; //+ ((f32)cfe->difficulty / 20.0f);
                 if (wario_timer >= 255) {
                     wario_timer = 255;
                     cfe->state = FNABE_ATTACK;
