@@ -636,6 +636,7 @@ void fnab_enemy_successful_defense(struct FnabEnemy* cfe) {
 u8 fnab_enemy_table_attack(struct FnabEnemy* cfe) {
     switch (cfe->info->tableAttackType) {
         case ENEMY_MOTOS: // The moto originally had a 10% chance to kill so here they will never kill
+            fnab_enemy_successful_defense(cfe);
             return FALSE;
             break;
         case ENEMY_BULLY: // The bully originally had a 90% chance to kill so here they will always kill
