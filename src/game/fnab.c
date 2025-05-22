@@ -801,7 +801,7 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
 
             enum MapTile tile_landed = 0;
             enum MapTile start_tile = 0;
-            u16 steps = cfe->info->maxSteps; //1+(random_u16()%cfe->info->maxSteps);
+            u16 steps = 1+(random_u16()%cfe->info->maxSteps);
             if (cfe->state == FNABE_IDLE || (random_u16()%20)+1>cfe->difficulty) {
                 steps = 0;
             }
@@ -850,7 +850,7 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
                 if (dir >= MAPDIR_NO_PATH) {
                     switch(cfe->state) {
                         case FNABE_WANDER:
-                            if (TRUE || random_u16()%3==0) {
+                            if (random_u16()%3==0) {
                                 //1/3 chance to start attacking
                                 cfe->state = FNABE_ATTACK;
                             }
