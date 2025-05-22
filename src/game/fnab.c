@@ -20,8 +20,6 @@
 extern void print_text_fmt_int(s32 x, s32 y, const char *str, s32 n);
 extern void print_text(s32 x, s32 y, const char *str);
 
-u8 activateMessage[10];
-
 #define _ TILE_WALL, // Wall / Nothing
 #define F TILE_FLOOR, // Floor  
 #define V TILE_VENT, // Vent
@@ -57,6 +55,87 @@ u8 fnabMap[20][20] = {
 #undef W
 #undef A
 
+#define __ (0 << 0) // Used for walls for alignment
+#define C0 (0 << 0) // Used for tiles that can't be seen, also for alignment
+#define C1 (1 << 5) // Trampoline exhibit
+#define C2 (1 << 6) // Hall L
+#define C3 (1 << 7) // Lava exhibit
+#define C4 (1 << 8) // L is real exhibit
+#define C5 (1 << 9) // APPARITION HALL
+#define C6 (1 << 10) // RESTROOMS
+#define C7 (1 << 11) // SOUTH VENT 1
+#define C8 (1 << 12) // HALL R
+#define C9 (1 << 13) // SPACEWORLD CASTLE
+// Using hexadecimal here to keep each camera just 2 letters in length
+#define CA (1 << 14) // CARTRIDGE ROOM
+#define CB (1 << 15) // CLOSET
+#define CC (1 << 20) // NORTH VENT
+#define CD (1 << 22) // SOUTH VENT 2
+
+// Combinations of cameras
+#define D1 (C9 | CA)
+#define D2 (CB | CD)
+#define D3 (C3 | CB)
+#define D4 (CC | CB)
+#define D5 (C4 | CC)
+#define D6 (C2 | C8)
+#define D7 (C1 | CB)
+#define D8 (C1 | C4)
+#define D9 (C1 | CC)
+
+#define E1 (C1 | C4 | CC)
+#define E2 (CC | C3 | CB)
+#define E3 (C1 | C4 | CC)
+
+u32 fnabCameraMap[20][20] = {
+{C9, C9, C9, C9, __, C3, C3, C3, __, C4, C4, C4, __, __, __, __, __, __, __, __,},
+{C9, __, C9, C9, __, C3, C3, D3, __, C4, __, __, __, C6, __, C6, __, __, __, __,},
+{C9, C9, C9, C9, __, __, C3, E2, __, E3, D5, __, __, C6, C6, C6, C6, __, __, __,},
+{C9, __, C9, C9, C9, CC, D4, D4, D9, E1, D5, D5, CC, __, __, __, C0, __, __, __,},
+{C9, C9, C9, C9, __, __, CB, __, __, E3, __, __, D6, C2, C2, C2, C2, C5, C5, __,},
+{C9, __, C9, C9, __, __, D7, __, C1, C1, C1, __, D6, __, __, __, C2, __, C5, __,},
+{C9, C9, C9, C9, C9, D2, D7, C1, C1, __, C1, C1, C8, __, __, __, C2, __, C5, __,},
+{C9, __, __, __, __, D2, __, __, C1, C1, C1, __, C8, __, __, __, C2, __, C5, __,},
+{D1, CA, CA, __, CB, D2, CB, __, __, __, __, __, C8, __, __, __, C2, __, C5, __,},
+{D1, CA, CA, __, CB, D2, CB, __, __, __, __, __, C8, __, __, __, C2, __, C5, __,},
+{D1, CA, CA, __, __, CD, __, __, __, C0, C8, C8, C8, __, __, __, C2, __, C5, __,},
+{C9, __, __, __, __, CD, __, __, __, C0, __, __, __, C0, C0, C0, C2, __, C5, __,},
+{C9, C0, C0, C0, C0, CD, __, __, __, __, __, __, __, __, __, __, __, __, __, __,},
+{__, __, __, __, __, CD, __, __, __, __, __, C0, __, __, __, __, __, __, __, __,},
+{__, __, __, __, __, C0, C7, C7, C7, C7, C7, C7, __, __, __, __, __, __, __, __,},
+{__, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __,},
+{__, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __,},
+{__, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __,},
+{__, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __,},
+{__, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, __,},
+};
+
+#undef C1
+#undef C2
+#undef C3
+#undef C4
+#undef C5
+#undef C6
+#undef C7
+#undef C8
+#undef C9
+#undef CA
+#undef CB
+#undef CC
+#undef CD
+#undef D1
+#undef D2
+#undef D3
+#undef D4
+#undef D5
+#undef D6
+#undef D7
+#undef D8
+#undef D9
+#undef E1
+#undef E2
+#undef E3
+
 #define MAP_SIZE 20
 #define PATH_BRANCH_STACK_CT 200
 
@@ -74,18 +153,18 @@ u8 pathfindingMap[MAP_SIZE][MAP_SIZE];
 struct pathBranch pathBranchStack[PATH_BRANCH_STACK_CT];
 u8 pathBranchCount = 0;
 
-u8 get_map_data(s8 x, s8 y) {
-    if ((x<MAP_SIZE&&x>=0)&&(y<MAP_SIZE&&y>=0)) {
+enum MapTile get_map_data(s8 x, s8 y) {
+    if ((x < MAP_SIZE && x >= 0)&&(y < MAP_SIZE && y >= 0)) {
         return pathfindingMap[y][x];
     }
     return TILE_WALL;
 }
 
 void add_path_branch(s8 x, s8 y, u8 allowVent) {
-    u8 mapdata = get_map_data(x,y);
+    enum MapTile mapdata = get_map_data(x,y);
     u8 cond = (mapdata > TILE_WALL);
     if (allowVent == FALSE) {
-        cond = ((mapdata > TILE_WALL)&&(mapdata != TILE_VENT));
+        cond = ((mapdata > TILE_WALL) && (mapdata != TILE_VENT));
     }
 
     if (cond) {
@@ -105,8 +184,8 @@ void add_path_branch(s8 x, s8 y, u8 allowVent) {
 u8 path_find(s8 xs, s8 ys, s8 xd, s8 yd, u8 allowVent) {
     if (xs == xd && ys == yd) {return MAPDIR_ARRIVED;}
 
-    bcopy(&fnabMap,&pathfindingMap,MAP_SIZE*MAP_SIZE);
-    bzero(&pathBranchStack,sizeof(pathfindingMap[0][0])*PATH_BRANCH_STACK_CT);
+    bcopy(&fnabMap, &pathfindingMap, MAP_SIZE * MAP_SIZE);
+    bzero(&pathBranchStack, sizeof(pathfindingMap[0][0]) * PATH_BRANCH_STACK_CT);
 
     pathBranchCount = 0;
     add_path_branch(xs,ys,allowVent);
@@ -127,7 +206,7 @@ u8 path_find(s8 xs, s8 ys, s8 xd, s8 yd, u8 allowVent) {
                 // Remove current active path branch and mark as solid on pathfinding map
                 cpb->active = 0;
                 pathfindingMap[y][x] = 0;
-                pathBranchCount --;
+                pathBranchCount--;
             }
         }
     }
@@ -321,7 +400,7 @@ s32 is_b3313_night(void) {
     return TRUE;
 }
 
-struct fnabEnemy enemyList[ENEMY_COUNT];
+struct FnabEnemy enemyList[ENEMY_COUNT];
 
 #define SECURITY_CAMERA_CT 25
 struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
@@ -334,7 +413,7 @@ struct securityCameraInfo securityCameras[SECURITY_CAMERA_CT] = {
     {.name = "HALL L"},
     {.name = "LAVA EXHIBIT"},
     {.name = "L IS REAL EXHIBIT"},
-    {.name = "APPARITION HALL"},
+    {.name = "APPARITION HALL"}, // Camera index 9
     {.name = "RESTROOMS"},
     {.name = "SOUTH VENT 1"},
     {.name = "HALL R"},
@@ -487,7 +566,11 @@ void bhv_stanley_title(void) {
     }
 }
 
-void fnab_enemy_set_target(struct fnabEnemy* cfe) {
+u8 is_seen_on_camera(struct FnabEnemy* cfe) {
+    return (fnabCameraMap[cfe->y][cfe->x] & (1 << fnab_cam_index)) != 0;
+}
+
+void fnab_enemy_set_target(struct FnabEnemy* cfe) {
     //set new target based on state
     switch(cfe->state) {
         case FNABE_WANDER:
@@ -529,7 +612,7 @@ void fnab_enemy_set_target(struct fnabEnemy* cfe) {
     }
 }
 
-void fnab_enemy_successful_defense(struct fnabEnemy* cfe) {
+void fnab_enemy_successful_defense(struct FnabEnemy* cfe) {
     cfe->x = cfe->info->homeX;
     cfe->y = cfe->info->homeY;
     cfe->state = FNABE_WANDER;
@@ -545,7 +628,7 @@ void fnab_enemy_successful_defense(struct fnabEnemy* cfe) {
     obj_scale(cfe->modelObj, 1.0f);
 }
 
-u8 fnab_enemy_table_attack(struct fnabEnemy* cfe) {
+u8 fnab_enemy_table_attack(struct FnabEnemy* cfe) {
     switch (cfe->info->tableAttackType) {
         case ENEMY_MOTOS: // The moto originally had a 10% chance to kill so here they will never kill
             return FALSE;
@@ -596,7 +679,6 @@ u8 fnab_enemy_table_attack(struct fnabEnemy* cfe) {
                 case id: \
                     if ((!n64_mouse_enabled && (gPlayer1Controller->buttonDown & direction) && !(gPlayer1Controller->buttonDown & anti_direction)) \
                         || (n64_mouse_x > minX && n64_mouse_x < maxX && n64_mouse_y > minY && n64_mouse_y < maxY)) { \
-\
                         cfe->stepCounter--; \
                         if (cfe->tableKillTimer > 0) {\
                             cfe->tableKillTimer--; \
@@ -629,7 +711,7 @@ u8 fnab_enemy_table_attack(struct fnabEnemy* cfe) {
     return FALSE;
 }
 
-void fnab_enemy_step(struct fnabEnemy* cfe) {
+void fnab_enemy_step(struct FnabEnemy* cfe) {
     if (!cfe->active) {return;}
 
     //JUMPSCARE BEHAVIOR
@@ -648,7 +730,7 @@ void fnab_enemy_step(struct fnabEnemy* cfe) {
         }
         //play_sound(SOUND_OBJ2_SMALL_BULLY_ATTACKED, gGlobalSoundSource);
 
-        cfe->modelObj->oFaceAnglePitch;
+        cfe->modelObj->oFaceAnglePitch = 0;
         cfe->modelObj->oFaceAngleYaw = obj_angle_to_object(cfe->modelObj,officePovCamera);
         cfe->modelObj->oFaceAngleRoll = 0;
         obj_scale(cfe->modelObj,cfe->info->jumpscareScale);
@@ -703,14 +785,16 @@ void fnab_enemy_step(struct fnabEnemy* cfe) {
         if (cfe->progress >= 1.0f) {
             cfe->progress -= 1.0f;
 
-            u8 tile_landed = 0;
-            u8 start_tile = 0;
+            enum MapTile tile_landed = 0;
+            enum MapTile start_tile = 0;
             u16 steps = cfe->info->maxSteps; //1+(random_u16()%cfe->info->maxSteps);
             if (cfe->state == FNABE_IDLE || (random_u16()%20)+1>cfe->difficulty) {
                 steps = 0;
             }
             if (steps > 0) {
-                camera_interference_timer = 6;
+                if (is_seen_on_camera(cfe)) {
+                    camera_interference_timer = 6;
+                }
                 if (get_map_data(cfe->x,cfe->y) == TILE_ATTACK) {
                     steps = 1;
                     light_interference_timer = 10;
@@ -720,7 +804,7 @@ void fnab_enemy_step(struct fnabEnemy* cfe) {
             for (int i = 0; i < steps; i++) {
                 cfe->animFrameHold = random_u16();
 
-                u8 dir = path_find(cfe->tx,cfe->ty,cfe->x,cfe->y,cfe->canVent);
+                enum MapDirection dir = path_find(cfe->tx,cfe->ty,cfe->x,cfe->y,cfe->canVent);
                 modeldir = dir;
 
                 cfe->x -= dirOffset[dir][0];
@@ -824,6 +908,8 @@ void fnab_enemy_step(struct fnabEnemy* cfe) {
                         obj_init_animation_with_sound_notshit(cfe->modelObj,cfe->info->anim[ANIMSLOT_VENT]);
                     }
                     break;
+                default:
+                    break;
             }
             //vent queue
             if (start_tile == TILE_FLOOR && tile_landed == TILE_VENT) {
@@ -914,7 +1000,7 @@ void fnab_enemy_step(struct fnabEnemy* cfe) {
     }
 }
 
-void fnab_enemy_init(struct fnabEnemy * cfe, struct enemyInfo * info, u8 difficulty) {
+void fnab_enemy_init(struct FnabEnemy * cfe, struct enemyInfo * info, u8 difficulty) {
     if (difficulty == 0) {
         cfe->active = FALSE;
         return;
@@ -1483,7 +1569,7 @@ void fnab_loop(void) {
 
                     snd_timer = 30;
                     for (int i = 0; i<ENEMY_COUNT; i++) {
-                        struct fnabEnemy * ce = &enemyList[i];
+                        struct FnabEnemy * ce = &enemyList[i];
 
                         if (!ce->active) {continue;}
                         if (ce->state == FNABE_IDLE) {continue;}
@@ -1511,7 +1597,7 @@ void fnab_loop(void) {
                 camera_interference_timer = 15;
 
                 for (int i = 0; i<ENEMY_COUNT; i++) {
-                    struct fnabEnemy * ce = &enemyList[i];
+                    struct FnabEnemy * ce = &enemyList[i];
 
                     if (!ce->active) {continue;}
                     if (get_map_data(ce->x,ce->y) == TILE_VENT || ce->state == FNABE_PRIMED_VENT) {

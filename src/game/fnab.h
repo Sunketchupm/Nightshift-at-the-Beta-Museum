@@ -75,7 +75,7 @@ struct enemyInfo {
     u8 personality;
 };
 
-struct fnabEnemy {
+struct FnabEnemy {
     u8 active;
     s8 x;
     s8 y;
@@ -105,7 +105,7 @@ struct pathBranch {
     u8 y;
 };
 
-enum mapDirection {
+enum MapDirection {
     MAPDIR_UP,
     MAPDIR_RIGHT,
     MAPDIR_DOWN,
