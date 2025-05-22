@@ -236,6 +236,7 @@ int fnab_office_statetimer = 0;
 u8 camera_interference_timer = 0;
 u8 light_interference_timer = 0;
 u8 force_static_timer = 0;
+u8 force_static_opacity = 255;
 
 f32 camera_mouse_x = 0.0f;
 f32 camera_mouse_y = 0.0f;
@@ -622,6 +623,10 @@ void fnab_enemy_successful_defense(struct FnabEnemy* cfe) {
     cfe->forceJumpscare = FALSE;
     cfe->tableKillTimer = 0;
     cfe->tableAttackCount++;
+    cfe->modelObj->oFaceAnglePitch = 0;
+    cfe->modelObj->oFaceAngleYaw = 0;
+    cfe->modelObj->oFaceAngleRoll = 0;
+    force_static_opacity = 255;
     force_static_timer = 10;
     light_interference_timer = 10;
     fnab_office_state = OFFICE_STATE_HIDE;
@@ -646,6 +651,9 @@ u8 fnab_enemy_table_attack(struct FnabEnemy* cfe) {
             //print_text(n64_mouse_x, n64_mouse_y, "0");
             //print_text_fmt_int(10, 20, "%d", n64_mouse_x);
             //print_text_fmt_int(10, 0, "%d", n64_mouse_y);
+            force_static_timer = 1;
+            force_static_opacity = 20;
+            light_interference_timer = 1;
             obj_scale(cfe->modelObj, 0.25f);
             cfe->animFrameHold = random_u16() % 8;
             if (cfe->stepCounter == 0) {
@@ -698,7 +706,7 @@ u8 fnab_enemy_table_attack(struct FnabEnemy* cfe) {
             //print_text_fmt_int(60, 30, "%d", cfe->tableKillTimer);
             #undef TABLE_ATTACK_STATE
 
-            if (cfe->progress >= 3 + (0.2f * cfe->difficulty)) {
+            if (cfe->progress >= 8 + (0.2f * cfe->difficulty)) {
                 fnab_enemy_successful_defense(cfe);
             } else if (cfe->tableKillTimer >= (150 - (2 * cfe->difficulty) - (5 * cfe->tableAttackCount))) {
                 //print_text(60, 50, "Failed");
@@ -1346,7 +1354,7 @@ void fnab_render_2d(void) {
     }
 
     if (force_static_timer > 0) {
-        render_camera_static(255);
+        render_camera_static(force_static_opacity);
         force_static_timer--;
     }
 
