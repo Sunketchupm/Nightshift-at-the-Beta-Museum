@@ -268,7 +268,7 @@ u8 fnab_night_id = 0;
 u8 fnab_call_played = FALSE;
 
 f32 wario_timer = 0.0f;
-u8 has_switched_camera_or_office = FALSE; // Blargg
+u8 has_switched_camera = FALSE; // Blargg
 
 struct enemyInfo motosInfo = {
     .homeX = 6,
@@ -277,7 +277,7 @@ struct enemyInfo motosInfo = {
     .canVent = FALSE,
     .modelBhv = bhvMotos,
     .modelId = MODEL_MOTOS,
-    .frequency = 0.02f,
+    .frequency = 0.04f,
     .tableAttackType = TABLE_NEVER_KILL,
     .maxSteps = 3,
 
@@ -303,7 +303,7 @@ struct enemyInfo bullyInfo = {
     .tableAttackType = TABLE_ALWAYS_KILL,
     .maxSteps = 3,
 
-    .choice = {FNABE_PRIMED_VENT,FNABE_PRIMED_VENT,FNABE_PRIMED_RIGHT},
+    .choice = {FNABE_PRIMED_VENT,FNABE_PRIMED_VENT,FNABE_PRIMED_VENT},
 
     .anim[ANIMSLOT_NORMAL] = 0,
     .anim[ANIMSLOT_WINDOW] = 0,
@@ -311,7 +311,7 @@ struct enemyInfo bullyInfo = {
     .anim[ANIMSLOT_JUMPSCARE] = 3,
 
     .jumpscareScale = .55f,
-    .personality = PERSONALITY_DEFAULT,
+    .personality = PERSONALITY_BULLY,
 };
 
 struct enemyInfo warioInfo = {
@@ -593,7 +593,7 @@ void bhv_background_blargg_loop(void) {
 
     switch (o->oAction) {
         case 1:
-            if (has_switched_camera_or_office) {
+            if (has_switched_camera) {
                 u8 chance = (random_u16() % 20);
                 if (chance < o->oUnk94 * 0.66f) {
                     if (currentCameraObject != NULL) {
@@ -601,7 +601,7 @@ void bhv_background_blargg_loop(void) {
                     }
                     o->oMoveAngleYaw = o->oFaceAngleYaw;
                 }
-                has_switched_camera_or_office = FALSE;
+                has_switched_camera = FALSE;
             }
             break;
         case 2:
@@ -614,7 +614,7 @@ void bhv_background_blargg_loop(void) {
             o->oPosZ = pos[2];
             o->oFaceAngleYaw = currentCameraObject->oFaceAngleYaw - 0x4000;
             obj_scale(o, 1);
-            if ((u32)o->oTimer > 60 - (1.5f * o->oUnk94)) {
+            if ((u32)o->oTimer > 75 - (1.5f * o->oUnk94)) {
                 force_static_opacity = 255;
                 force_static_timer = 20;
                 o->oAction = 3;
@@ -632,7 +632,7 @@ void bhv_background_blargg_loop(void) {
                     }
                 }
             }
-            if (has_switched_camera_or_office) {
+            if (has_switched_camera) {
                 o->oAction = 3;
             }
             break;
@@ -644,7 +644,7 @@ void bhv_background_blargg_loop(void) {
             obj_scale(o, 0.5f);
             if (o->oTimer > 30) {
                 o->oAction = 1;
-                has_switched_camera_or_office = FALSE;
+                has_switched_camera = FALSE;
             }
             break;
     }
@@ -786,7 +786,7 @@ u8 fnab_enemy_table_attack(struct FnabEnemy* cfe) {
 
             if (cfe->progress >= 8 + (0.2f * cfe->difficulty)) {
                 fnab_enemy_successful_defense(cfe);
-            } else if (cfe->tableKillTimer >= (150 - (2 * cfe->difficulty) - (5 * cfe->tableAttackCount))) {
+            } else if (cfe->tableKillTimer >= (210 - (1.5 * cfe->difficulty) - (10 * cfe->tableAttackCount))) {
                 //print_text(60, 50, "Failed");
                 return TRUE;
             }
@@ -1601,7 +1601,7 @@ void fnab_loop(void) {
                 fnab_office_statetimer = 0;
                 fnab_cam_index = fnab_cam_last_index;
                 fnab_office_state = OFFICE_STATE_CAMERA;
-                has_switched_camera_or_office = TRUE;
+                has_switched_camera = TRUE;
             }
             break;
         case OFFICE_STATE_CAMERA:
@@ -1637,7 +1637,7 @@ void fnab_loop(void) {
                             fnab_cam_last_index = i;
                             camera_interference_timer = 6;
                             play_sound(SOUND_MENU_CLICK_CHANGE_VIEW, gGlobalSoundSource);
-                            has_switched_camera_or_office = TRUE;
+                            has_switched_camera = TRUE;
                         } else {
                             if (breakerCharges[0]>0&&securityCameras[i].doorStatus == 0) {
                                 breakerCharges[0]--;
@@ -1728,7 +1728,6 @@ void fnab_loop(void) {
                 fnab_office_state = OFFICE_STATE_LEAVE_CAMERA;
                 fnab_cam_index = 1;
                 fnab_office_statetimer = 0;
-                has_switched_camera_or_office = TRUE;
             }
 
             break;
