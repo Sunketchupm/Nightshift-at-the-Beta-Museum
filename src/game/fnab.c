@@ -618,7 +618,7 @@ void bhv_background_blargg_loop(void) {
 
     switch (o->oAction) {
         case 1:
-            if (has_switched_camera) {
+            if (has_switched_camera && fnab_cam_index > 4) {
                 u8 chance = (random_u16() % 20);
                 if (chance < o->oUnk94 * 0.66f) {
                     if (currentCameraObject != NULL) {
@@ -805,7 +805,7 @@ u8 fnab_enemy_table_attack(struct FnabEnemy* cfe) {
                     /* print_text_fmt_int((minX + maxX) * 0.5, (minY + maxY) * 0.5, "%d", cfe->tableAttackState); */ \
                     break;
             switch (cfe->tableAttackState) {
-                TABLE_ATTACK_STATE(0, 120, 190, 125, 195, U_CBUTTONS, (R_CBUTTONS | L_CBUTTONS));
+                TABLE_ATTACK_STATE(0, 125, 190, 125, 195, U_CBUTTONS, (R_CBUTTONS | L_CBUTTONS));
                 TABLE_ATTACK_STATE(1, 225, 290, 20, 130, R_CBUTTONS, (U_CBUTTONS | L_CBUTTONS));
                 TABLE_ATTACK_STATE(2, 30, 100, 105, 175, L_CBUTTONS, (U_CBUTTONS | R_CBUTTONS));
             }
@@ -1180,6 +1180,7 @@ void fnab_enemy_init(struct FnabEnemy * cfe, struct enemyInfo * info, u8 difficu
     cfe->canVent = cfe->info->canVent;
 
     wario_timer = 0.0f;
+    luigi_step_counter = 0;
 }
 
 void print_breaker_status(u16 x, u16 y) {
@@ -1781,6 +1782,7 @@ void fnab_loop(void) {
                 fnab_office_state = OFFICE_STATE_LEAVE_CAMERA;
                 fnab_cam_index = 1;
                 fnab_office_statetimer = 0;
+                has_switched_camera = TRUE;
             }
 
             break;
