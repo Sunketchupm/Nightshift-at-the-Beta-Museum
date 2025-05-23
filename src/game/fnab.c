@@ -864,6 +864,9 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
         // don't move
     } else {
         cfe->progress += cfe->info->frequency * .7f; //make game slower by 70% og so the player has more time to actually strategize
+        if (cfe->info->personality == PERSONALITY_BULLY && get_map_data(cfe->x, cfe->y) == TILE_VENT) {
+            cfe->progress -= 0.015f;
+        }
     }
 
     if (cfe->state == FNABE_FLUSHED) {
@@ -1674,7 +1677,11 @@ void fnab_loop(void) {
                         struct FnabEnemy * ce = &enemyList[i];
 
                         if (!ce->active) {continue;}
-                        if (ce->state == FNABE_IDLE || ce->info->personality == PERSONALITY_LUIGI) {continue;}
+                        if (ce->state == FNABE_IDLE ||
+                            ce->info->personality == PERSONALITY_LUIGI ||
+                            (ce->info->personality == PERSONALITY_BULLY && get_map_data(ce->x, ce->y) == TILE_VENT)) {
+                            continue;
+                        }
 
                         f32 xdif = snd_x - ce->x;
                         f32 ydif = snd_y - ce->y;
