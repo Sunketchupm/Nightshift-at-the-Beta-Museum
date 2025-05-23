@@ -269,6 +269,31 @@ u8 fnab_call_played = FALSE;
 
 f32 wario_timer = 0.0f;
 u8 has_switched_camera = FALSE; // Blargg
+u8 luigi_path[21][2] = {
+    {10, 0},
+    {9, 0},
+    {9, 1},
+    {9, 2},
+    {9, 3},
+    {8, 3},
+    {7, 3},
+    {6, 3},
+    {5, 3},
+    {4, 3},
+    {3, 3},
+    {2, 3},
+    {2, 4},
+    {1, 4},
+    {0, 4},
+    {0, 5},
+    {0, 6},
+    {0, 7},
+    {0, 8},
+    {1, 8},
+    {1, 9},
+};
+// Todo: Use the FnabEnemy step counter for this if possible
+u8 luigi_step_counter = 0;
 
 struct enemyInfo motosInfo = {
     .homeX = 6,
@@ -343,7 +368,7 @@ struct enemyInfo luigiInfo = {
     .canVent = TRUE,
     .modelBhv = bhvBetaLuigi,
     .modelId = MODEL_BETA_LUIGI,
-    .frequency = 0.006f,
+    .frequency = 0.005f,
     .tableAttackType = TABLE_ALWAYS_KILL,
     .maxSteps = 1,
 
@@ -673,6 +698,9 @@ void fnab_enemy_set_target(struct FnabEnemy* cfe) {
             break;
         case FNABE_ATTACK:
             u8 attack_location_index = random_u16() % (cfe->canVent ? 3 : 2);
+            if (cfe->info->personality == PERSONALITY_BULLY && !cfe->canVent) {
+                break;
+            }
             cfe->attackLocation = cfe->info->choice[attack_location_index];
             switch(cfe->attackLocation) {
                 case FNABE_PRIMED_LEFT:
@@ -689,9 +717,9 @@ void fnab_enemy_set_target(struct FnabEnemy* cfe) {
                     break;
             }
             break;
+        // Luigi only
         case FNABE_CART_ATTACK:
-            cfe->tx = 1;
-            cfe->ty = 9;
+            // Custom pathing in fnab_enemy_step()
             break;
     }
 }
@@ -859,6 +887,11 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
         }
     }
 
+    //LUIGI PERSONALITY
+    if (cfe->info->personality == PERSONALITY_LUIGI && !cartridgeTilt) {
+        cfe->state = FNABE_CART_ATTACK;
+    }
+
     //PER FRAME PROGRESS
     if (cfe->info->personality == PERSONALITY_LUIGI && is_seen_on_camera(cfe)) {
         // don't move
@@ -901,14 +934,30 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
                 enum MapDirection dir = path_find(cfe->tx,cfe->ty,cfe->x,cfe->y,cfe->canVent);
                 modeldir = dir;
 
-                cfe->x -= dirOffset[dir][0];
-                cfe->y -= dirOffset[dir][1];
+                // Force luigi to follow a set path
+                if (cfe->info->personality == PERSONALITY_LUIGI && !cartridgeTilt) {
+                    u8 new_tile[2] = {0, 0};
+                    if (luigi_step_counter > 20) {
+                        // If luigi detours from the path (which will have more than 20 steps), force him back
+                        luigi_step_counter = 15;
+                    }
+                    new_tile[0] = luigi_path[luigi_step_counter][0];
+                    new_tile[1] = luigi_path[luigi_step_counter][1];
+                    if (get_map_data(new_tile[0], new_tile[1]) != TILE_WALL) {
+                        cfe->x = new_tile[0];
+                        cfe->y = new_tile[1];
+                        luigi_step_counter++;
+                    }
+                } else {
+                    cfe->x -= dirOffset[dir][0];
+                    cfe->y -= dirOffset[dir][1];
+                }
 
                 start_tile = get_map_data(cfe->x,cfe->y);
 
                 //if touching another enemy on last turn, go to old position
                 //stanley can phase through enemies now (otherwise he gets fucking stuck LMAO)
-                if (i == steps-1 && cfe->info->personality != PERSONALITY_STANLEY) { //only on last step
+                if (i == steps-1 && (cfe->info->personality != PERSONALITY_STANLEY && cfe->info->personality != PERSONALITY_LUIGI)) { //only on last step
                     for (int i = 0; i < ENEMY_COUNT; i++) {
                         if (enemyList[i].active) {
                             if (cfe != &enemyList[i] && enemyList[i].x == cfe->x && enemyList[i].y == cfe->y) {
@@ -934,9 +983,6 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
                                 //1/3 chance to start attacking
                                 cfe->state = FNABE_ATTACK;
                             }
-                            if (cfe->info->personality == PERSONALITY_LUIGI && !cartridgeTilt) {
-                                cfe->state = FNABE_CART_ATTACK;
-                            }
                             break;
                         case FNABE_DISTRACTED:
                         case FNABE_FLUSHED:
@@ -949,7 +995,7 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
                             break;
                         case FNABE_CART_ATTACK:
                             //cfe->state = FNABE_WANDER;
-                            if (dir == MAPDIR_ARRIVED) {
+                            if (cfe->x == 1 && cfe->y == 9) {
                                 cartridgeTilt = TRUE;
                                 breakerFixing = FALSE;
                                 for (int i = 0; i<3; i++) {
@@ -1321,6 +1367,7 @@ void fnab_render_2d(void) {
             gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
         }
 
+        radar_timer = 200;
         if (radar_timer > 100) {
             for (int i = 0; i < ENEMY_COUNT; i++) {
                 if (enemyList[i].active) {
@@ -1708,7 +1755,7 @@ void fnab_loop(void) {
                 for (int i = 0; i<ENEMY_COUNT; i++) {
                     struct FnabEnemy * ce = &enemyList[i];
 
-                    if (!ce->active) {continue;}
+                    if (!ce->active || ce->info->personality == PERSONALITY_LUIGI) {continue;}
                     if (get_map_data(ce->x,ce->y) == TILE_VENT || ce->state == FNABE_PRIMED_VENT) {
                         ce->state = FNABE_WANDER;
                         ce->canVent = FALSE;
