@@ -1018,7 +1018,7 @@ void fnab_enemy_step(struct FnabEnemy* cfe) {
             }
 
             // Also static on tile arrival
-            if (is_seen_on_camera(cfe) && cfe->info->personality != PERSONALITY_WARIO) {
+            if (steps > 0 && is_seen_on_camera(cfe)) {
                 camera_interference_timer = 6;
             }
 
@@ -2279,20 +2279,20 @@ Press START to continue.");
         case 5: // CUSTOM NIGHT
             gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
             gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, 255);
-            print_generic_string_ascii(15,220,"Changelog v1.1 5-9-25\n\
+            print_generic_string_ascii(15,220,"Changelog v1.2 5-23-25\n\
 \n\
-- Added N64 mouse support\n\
-- Nights now unlock sequentially\n\
-- Game can now save progress\n\
-- Added custom night\n\
-- Added endless night\n\
-- Added a secret night\n\
-- Made night 5 easier\n\
-- Improved Stanley jumpscare\n\
-- Improved Stanley AI\n\
-- Fixed visual bugs on Luna PJ64\n\
-- Fixed visual bugs on N64 hardware\n\
-- Map has been tweaked and improved");
+- Added Reboot All button into the breaker\n\
+- Office animations are now faster\n\
+- Increased max animatronic AI level to 20\n\
+- Doors now have a faster cycle time\n\
+- Vent flush is now more fair\n\
+- Lightly reworked camera static\n\
+Animatronic specific changes\n\
+- The Moto moves faster\n\
+- The Bully can now only be flushed out of vents\n\
+- Luigi no longer listens to audio, only to being watched\n\
+- Stanley now does a special table attack\n\
+- Added Blargg as an animatronic");
             gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
             exit_render();
             break;
