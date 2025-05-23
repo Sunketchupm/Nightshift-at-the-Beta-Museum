@@ -1367,7 +1367,6 @@ void fnab_render_2d(void) {
             gSPPopMatrix(gDisplayListHead++, G_MTX_MODELVIEW);
         }
 
-        radar_timer = 200;
         if (radar_timer > 100) {
             for (int i = 0; i < ENEMY_COUNT; i++) {
                 if (enemyList[i].active) {
