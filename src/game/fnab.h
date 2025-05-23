@@ -45,15 +45,21 @@ enum personality {
     PERSONALITY_DEFAULT,
     PERSONALITY_WARIO,
     PERSONALITY_LUIGI,
-    PERSONALITY_STANLEY
+    PERSONALITY_STANLEY,
 };
 
 enum MapTile {
     TILE_WALL = 0,
-    TILE_FLOOR = 1,
-    TILE_VENT = 2,
-    TILE_WINDOW = 3,
-    TILE_ATTACK = 4
+    TILE_FLOOR,
+    TILE_VENT,
+    TILE_WINDOW,
+    TILE_ATTACK
+};
+
+enum TableAttackType {
+    TABLE_ALWAYS_KILL = 0,
+    TABLE_NEVER_KILL,
+    TABLE_STANLEY
 };
 
 struct enemyInfo {
@@ -65,7 +71,7 @@ struct enemyInfo {
     const BehaviorScript* modelBhv;
     u16 modelId;
     f32 frequency;
-    enum fnabEnemyId tableAttackType;
+    enum TableAttackType tableAttackType;
 
     u8 choice[3];
     u8 anim[4];
@@ -177,5 +183,6 @@ void fnab_mouse_render(void);
 s32 fnab_main_menu(void);
 void fnab_main_menu_render(void);
 void fnab_main_menu_init(void);
+void bhv_background_blargg_loop(void);
 
 #endif

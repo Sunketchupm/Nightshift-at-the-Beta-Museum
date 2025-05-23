@@ -225,6 +225,7 @@ Vec3f fnabCameraFoc;
 struct Object * officePovCamera = NULL;
 struct Object * darknessObject = NULL;
 struct Object * monitorScreenObject = NULL;
+struct Object* currentCameraObject = NULL;
 
 u8 fnab_cam_index = 0;
 u8 fnab_cam_last_index = 5;
@@ -248,8 +249,6 @@ u8 n64_mouse_camera_flick_state = 0;
 f32 n64_mouse_x = 160.0f;
 f32 n64_mouse_y = 120.0f;
 
-#define IF_N64_MOUSE_ENABLED(is, isNot) (n64_mouse_enabled ? (is) : (isNot))
-
 u8 snd_x = -1;
 u8 snd_y = -1;
 u8 snd_timer = 0;
@@ -268,8 +267,8 @@ u8 fnab_night_id = 0;
 
 u8 fnab_call_played = FALSE;
 
-// Todo: Find some way to not need an external variable
 f32 wario_timer = 0.0f;
+u8 has_switched_camera_or_office = FALSE; // Blargg
 
 struct enemyInfo motosInfo = {
     .homeX = 6,
@@ -279,7 +278,7 @@ struct enemyInfo motosInfo = {
     .modelBhv = bhvMotos,
     .modelId = MODEL_MOTOS,
     .frequency = 0.02f,
-    .tableAttackType = ENEMY_MOTOS,
+    .tableAttackType = TABLE_NEVER_KILL,
     .maxSteps = 3,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT},
@@ -301,7 +300,7 @@ struct enemyInfo bullyInfo = {
     .modelBhv = bhvBetaBully,
     .modelId = MODEL_BETABULLY,
     .frequency = 0.03f,
-    .tableAttackType = ENEMY_BULLY,
+    .tableAttackType = TABLE_ALWAYS_KILL,
     .maxSteps = 3,
 
     .choice = {FNABE_PRIMED_VENT,FNABE_PRIMED_VENT,FNABE_PRIMED_RIGHT},
@@ -323,7 +322,7 @@ struct enemyInfo warioInfo = {
     .modelBhv = bhvWarioApp,
     .modelId = MODEL_WARIOAPP,
     .frequency = 0.1f,
-    .tableAttackType = ENEMY_WARIO,
+    .tableAttackType = TABLE_ALWAYS_KILL,
     .maxSteps = 4,
 
     .choice = {FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_RIGHT},
@@ -345,7 +344,7 @@ struct enemyInfo luigiInfo = {
     .modelBhv = bhvBetaLuigi,
     .modelId = MODEL_BETA_LUIGI,
     .frequency = 0.006f,
-    .tableAttackType = ENEMY_LUIGI,
+    .tableAttackType = TABLE_ALWAYS_KILL,
     .maxSteps = 1,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_VENT},
@@ -367,7 +366,7 @@ struct enemyInfo stanleyInfo = {
     .modelBhv = bhvStanley,
     .modelId = MODEL_STANLEY,
     .frequency = 0.09f,
-    .tableAttackType = ENEMY_STANLEY,
+    .tableAttackType = TABLE_STANLEY,
     .maxSteps = 1,
 
     .choice = {FNABE_PRIMED_LEFT,FNABE_PRIMED_RIGHT,FNABE_PRIMED_VENT},
@@ -381,6 +380,8 @@ struct enemyInfo stanleyInfo = {
     .personality = PERSONALITY_STANLEY,
 };
 
+// Although blargg is an animatronic, he behaves very differently and has very different code
+
 u8 nightEnemyDifficulty[7][ENEMY_COUNT] = {
     {5,4,0,0,0}, //NIGHT 1
     {6,6,10,0,0}, //NIGHT 2
@@ -392,12 +393,21 @@ u8 nightEnemyDifficulty[7][ENEMY_COUNT] = {
     {1,1,1,1,1}, // ENDLESS NIGHT, slowly increases overtime
 };
 
-s32 is_b3313_night(void) {
-    if (nightEnemyDifficulty[NIGHT_CUSTOM][0] != 0x0B) {return FALSE;}
-    if (nightEnemyDifficulty[NIGHT_CUSTOM][1] != 0x03) {return FALSE;}
-    if (nightEnemyDifficulty[NIGHT_CUSTOM][2] != 0x03) {return FALSE;}
-    if (nightEnemyDifficulty[NIGHT_CUSTOM][3] != 0x01) {return FALSE;}
-    if (nightEnemyDifficulty[NIGHT_CUSTOM][4] != 0x03) {return FALSE;}
+u8 is_b3313_night(void) {
+    if (nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_MOTOS] != 0x0B) {return FALSE;}
+    if (nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_BULLY] != 0x03) {return FALSE;}
+    if (nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_WARIO] != 0x03) {return FALSE;}
+    if (nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_LUIGI] != 0x01) {return FALSE;}
+    if (nightEnemyDifficulty[NIGHT_CUSTOM][ENEMY_STANLEY] != 0x03) {return FALSE;}
+    return TRUE;
+}
+
+u8 is_blargg_enabled(void) {
+    for (enum fnabEnemyId i = ENEMY_MOTOS; i < ENEMY_COUNT; i++) {
+        if (nightEnemyDifficulty[NIGHT_CUSTOM][i] < 15) {
+            return FALSE;
+        }
+    }
     return TRUE;
 }
 
@@ -504,7 +514,7 @@ void bhv_fnab_camera(void) {
     securityCameras[o->oBehParams2ndByte].angle = o->oFaceAngleYaw;
 
     if (o->oBehParams2ndByte == fnab_cam_index) {
-
+        currentCameraObject = o;
         //camera rotation controls
         if (securityCameras[o->oBehParams2ndByte].name) {
             if (gPlayer1Controller->buttonDown & L_CBUTTONS) {
@@ -564,6 +574,79 @@ void bhv_fnab_camera(void) {
 void bhv_stanley_title(void) {
     if (random_u16()%20>2 || (o->oTimer%90>60)) {
         o->header.gfx.animInfo.animFrame=6;
+    }
+}
+
+void bhv_background_blargg_loop(void) {
+    if (!is_blargg_enabled()) { return; }
+
+    if (o->oAction == 0) {
+        o->oAction = 1;
+        u8 difficulty = 0;
+        for (enum fnabEnemyId i = ENEMY_MOTOS; i < ENEMY_COUNT; i++) {
+            difficulty = nightEnemyDifficulty[NIGHT_CUSTOM][i];
+        }
+        o->oUnk94 = difficulty * 0.2;
+    }
+
+    //print_text_fmt_int(30, 60, "%d", o->oAction);
+
+    switch (o->oAction) {
+        case 1:
+            if (has_switched_camera_or_office) {
+                u8 chance = (random_u16() % 20);
+                if (chance < o->oUnk94 * 0.66f) {
+                    if (currentCameraObject != NULL) {
+                        o->oAction = 2;
+                    }
+                    o->oMoveAngleYaw = o->oFaceAngleYaw;
+                }
+                has_switched_camera_or_office = FALSE;
+            }
+            break;
+        case 2:
+            Vec3f pos;
+            vec3f_copy(pos, fnabCameraPos);
+            pos[0] += 125 * sins(currentCameraObject->oFaceAngleYaw);
+            pos[2] += 125 * coss(currentCameraObject->oFaceAngleYaw);
+            o->oPosX = pos[0];
+            o->oPosY = pos[1] - 40;
+            o->oPosZ = pos[2];
+            o->oFaceAngleYaw = currentCameraObject->oFaceAngleYaw - 0x4000;
+            obj_scale(o, 1);
+            if ((u32)o->oTimer > 60 - (1.5f * o->oUnk94)) {
+                force_static_opacity = 255;
+                force_static_timer = 20;
+                o->oAction = 3;
+                // If there are any charges left
+                if (breakerCharges[0] + breakerCharges[1] + breakerCharges[2] != 0) {
+                    u8 index = random_u16() % 3;
+                    u8 charge = breakerCharges[index];
+                    u8 emergency_break = 0;
+                    while (charge == 0 && emergency_break++ < 10) {
+                        index = random_u16() % 3;
+                        charge = breakerCharges[index];
+                    }
+                    if (charge > 0) {
+                        breakerCharges[index]--;
+                    }
+                }
+            }
+            if (has_switched_camera_or_office) {
+                o->oAction = 3;
+            }
+            break;
+        case 3:
+            o->oPosX = o->oHomeX;
+            o->oPosY = o->oHomeY;
+            o->oPosZ = o->oHomeZ;
+            o->oFaceAngleYaw = o->oMoveAngleYaw;
+            obj_scale(o, 0.5f);
+            if (o->oTimer > 30) {
+                o->oAction = 1;
+                has_switched_camera_or_office = FALSE;
+            }
+            break;
     }
 }
 
@@ -635,20 +718,14 @@ void fnab_enemy_successful_defense(struct FnabEnemy* cfe) {
 
 u8 fnab_enemy_table_attack(struct FnabEnemy* cfe) {
     switch (cfe->info->tableAttackType) {
-        case ENEMY_MOTOS: // The moto originally had a 10% chance to kill so here they will never kill
+        case TABLE_NEVER_KILL:
             fnab_enemy_successful_defense(cfe);
             return FALSE;
             break;
-        case ENEMY_BULLY: // The bully originally had a 90% chance to kill so here they will always kill
+        case TABLE_ALWAYS_KILL:
             return TRUE;
             break;
-        case ENEMY_WARIO: // Wario always killed
-            return TRUE;
-            break;
-        case ENEMY_LUIGI: // ?
-            return TRUE;
-            break;
-        case ENEMY_STANLEY:
+        case TABLE_STANLEY:
             //print_text(n64_mouse_x, n64_mouse_y, "0");
             //print_text_fmt_int(10, 20, "%d", n64_mouse_x);
             //print_text_fmt_int(10, 0, "%d", n64_mouse_y);
@@ -1524,6 +1601,7 @@ void fnab_loop(void) {
                 fnab_office_statetimer = 0;
                 fnab_cam_index = fnab_cam_last_index;
                 fnab_office_state = OFFICE_STATE_CAMERA;
+                has_switched_camera_or_office = TRUE;
             }
             break;
         case OFFICE_STATE_CAMERA:
@@ -1559,6 +1637,7 @@ void fnab_loop(void) {
                             fnab_cam_last_index = i;
                             camera_interference_timer = 6;
                             play_sound(SOUND_MENU_CLICK_CHANGE_VIEW, gGlobalSoundSource);
+                            has_switched_camera_or_office = TRUE;
                         } else {
                             if (breakerCharges[0]>0&&securityCameras[i].doorStatus == 0) {
                                 breakerCharges[0]--;
@@ -1649,6 +1728,7 @@ void fnab_loop(void) {
                 fnab_office_state = OFFICE_STATE_LEAVE_CAMERA;
                 fnab_cam_index = 1;
                 fnab_office_statetimer = 0;
+                has_switched_camera_or_office = TRUE;
             }
 
             break;

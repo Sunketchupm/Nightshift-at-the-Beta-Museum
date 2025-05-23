@@ -6097,7 +6097,9 @@ const BehaviorScript bhvBlargg[] = {
     LOAD_ANIMATIONS(oAnimations, blargg_seg5_anims_0500616C),
     ANIMATE(0),
     SCALE(/*Unused*/ 0, /*Field*/ 50),
+    SET_HOME(),
     BEGIN_LOOP(),
+        CALL_NATIVE(bhv_background_blargg_loop),
     END_LOOP(),
 };
 
